@@ -1,0 +1,381 @@
+{
+  "case_number": "CJ-2024-1",
+  "case_style": "AUTO FINANCE USA LLC v. RICHARDSON, JAMARIO DAMONT",
+  "cmid": "3656437",
+  "court": "TULSA",
+  "judge": "Civil Docket A",
+  "filed": "01/02/2024",
+  "closed": "10/24/2024",
+  "status": "closed:10/24/2024",
+  "docket_entries": [
+    {
+      "date": "01-02-2024",
+      "code": "TEXT",
+      "description": "CIVIL RELIEF MORE THAN $10,000 INITIAL FILING.",
+      "row_text": "01-02-2024 TEXT CIVIL RELIEF MORE THAN $10,000 INITIAL FILING. 1",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "INDEBT",
+      "description": "INDEBTEDNESS",
+      "row_text": "01-02-2024 INDEBT INDEBTEDNESS",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "DMFE",
+      "description": "DISPUTE MEDIATION FEE",
+      "row_text": "01-02-2024 DMFE DISPUTE MEDIATION FEE $ 7.00",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "PFE1",
+      "description": "PETITION",
+      "row_text": "01-02-2024 PFE1 PETITION Document Available (#1057134173) TIFF PDF $ 163.00",
+      "doc_url": "https://www.oscn.net/dockets/GetDocument.aspx?ct=tulsa&bc=1057134173&cn=CJ-2024-1&fmt=pdf",
+      "has_pdf": true,
+      "has_tif": true
+    },
+    {
+      "date": "01-02-2024",
+      "code": "PFE7",
+      "description": "LAW LIBRARY FEE",
+      "row_text": "01-02-2024 PFE7 LAW LIBRARY FEE $ 6.00",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "OCISR",
+      "description": "OKLAHOMA COURT INFORMATION SYSTEM REVOLVING FUND",
+      "row_text": "01-02-2024 OCISR OKLAHOMA COURT INFORMATION SYSTEM REVOLVING FUND $ 25.00",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "OCJC",
+      "description": "OKLAHOMA COUNCIL ON JUDICIAL COMPLAINTS REVOLVING FUND",
+      "row_text": "01-02-2024 OCJC OKLAHOMA COUNCIL ON JUDICIAL COMPLAINTS REVOLVING FUND $ 1.55",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "OCASA",
+      "description": "OKLAHOMA COURT APPOINTED SPECIAL ADVOCATES",
+      "row_text": "01-02-2024 OCASA OKLAHOMA COURT APPOINTED SPECIAL ADVOCATES $ 5.00",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "SSFCHSCPC",
+      "description": "SHERIFF'S SERVICE FEE FOR COURTHOUSE SECURITY PER BOARD OF COUNTY COMMISSIONER",
+      "row_text": "01-02-2024 SSFCHSCPC SHERIFF'S SERVICE FEE FOR COURTHOUSE SECURITY PER BOARD OF COUNTY COMMISSIONER $ 10.00",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "CCADMINCSF",
+      "description": "COURT CLERK ADMINISTRATIVE FEE ON COURTHOUSE SECURITY PER BOARD OF COUNTY COMMISSIONER",
+      "row_text": "01-02-2024 CCADMINCSF COURT CLERK ADMINISTRATIVE FEE ON COURTHOUSE SECURITY PER BOARD OF COUNTY COMMISSIONER $ 1.00",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "CCADMIN0155",
+      "description": "COURT CLERK ADMINISTRATIVE FEE ON $1.55 COLLECTION",
+      "row_text": "01-02-2024 CCADMIN0155 COURT CLERK ADMINISTRATIVE FEE ON $1.55 COLLECTION $ 0.16",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "SJFIS",
+      "description": "STATE JUDICIAL REVOLVING FUND - INTERPRETER AND TRANSLATOR SERVICES",
+      "row_text": "01-02-2024 SJFIS STATE JUDICIAL REVOLVING FUND - INTERPRETER AND TRANSLATOR SERVICES $ 0.45",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "DCADMIN155",
+      "description": "DISTRICT COURT ADMINISTRATIVE FEE ON $1.55 COLLECTIONS",
+      "row_text": "01-02-2024 DCADMIN155 DISTRICT COURT ADMINISTRATIVE FEE ON $1.55 COLLECTIONS $ 0.23",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "DCADMIN05",
+      "description": "DISTRICT COURT ADMINISTRATIVE FEE ON $5 COLLECTIONS",
+      "row_text": "01-02-2024 DCADMIN05 DISTRICT COURT ADMINISTRATIVE FEE ON $5 COLLECTIONS $ 0.75",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "DCADMINCSF",
+      "description": "DISTRICT COURT ADMINISTRATIVE FEE ON COURTHOUSE SECURITY PER BOARD OF COUNTY COMMISSIONER",
+      "row_text": "01-02-2024 DCADMINCSF DISTRICT COURT ADMINISTRATIVE FEE ON COURTHOUSE SECURITY PER BOARD OF COUNTY COMMISSIONER $ 1.50",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "CCRMPF",
+      "description": "COURT CLERK'S RECORDS MANAGEMENT AND PRESERVATION FEE",
+      "row_text": "01-02-2024 CCRMPF COURT CLERK'S RECORDS MANAGEMENT AND PRESERVATION FEE $ 10.00",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "CCADMIN04",
+      "description": "COURT CLERK ADMINISTRATIVE FEE ON COLLECTIONS",
+      "row_text": "01-02-2024 CCADMIN04 COURT CLERK ADMINISTRATIVE FEE ON COLLECTIONS $ 0.50",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "LTF",
+      "description": "LENGTHY TRIAL FUND",
+      "row_text": "01-02-2024 LTF LENGTHY TRIAL FUND $ 10.00",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "SMF",
+      "description": "SUMMONS FEE (CLERKS FEE)-2",
+      "row_text": "01-02-2024 SMF SUMMONS FEE (CLERKS FEE)-2 $ 20.00",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "APLI",
+      "description": "APPLICATION FOR ORDER RESTRAINING DISPOSITION OF PROOPERTY AND COMPELLING DEFENDANTS TO APPEAR AND DISCLOSE LOCATION OF PROPERTY",
+      "row_text": "01-02-2024 APLI APPLICATION FOR ORDER RESTRAINING DISPOSITION OF PROOPERTY AND COMPELLING DEFENDANTS TO APPEAR AND DISCLOSE LOCATION OF PROPERTY Document Available (#1057134177) TIFF PDF",
+      "doc_url": "https://www.oscn.net/dockets/GetDocument.aspx?ct=tulsa&bc=1057134177&cn=CJ-2024-1&fmt=pdf",
+      "has_pdf": true,
+      "has_tif": true
+    },
+    {
+      "date": "01-02-2024",
+      "code": "TEXT",
+      "description": "OCIS HAS AUTOMATICALLY ASSIGNED JUDGE CIVIL DOCKET A TO THIS CASE.",
+      "row_text": "01-02-2024 TEXT OCIS HAS AUTOMATICALLY ASSIGNED JUDGE CIVIL DOCKET A TO THIS CASE.",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-02-2024",
+      "code": "ACCOUNT",
+      "description": "RECEIPT # 2024-4572672 ON 01/02/2024. PAYOR: ROBINSON, HOOVER & FUDGE PLLC TOTAL AMOUNT PAID: $ 262.14. LINE ITEMS: CJ-2024-1: $183.00 ON AC01 CLERK FEES. CJ-2024-1: $6.00 ON AC23 LAW LIBRARY FEE CIVIL AND CRIMINAL. CJ-2024-1: $1.66 ON AC31 COURT CLERK REVOLVING FUND. CJ-2024-1: $5.00 ON AC58 OKLAHOMA COURT APPOINTED SPECIAL ADVOCATES. CJ-2024-1: $1.55 ON AC59 COUNCIL ON JUDICIAL COMPLAINTS REVOLVING FUND. CJ-2024-1: $7.00 ON AC64 DISPUTE MEDIATION FEES CIVIL ONLY. CJ-2024-1: $0.45 ON AC65 STATE JUDICIAL REVOLVING FUND, INTERPRETER SVCS. CJ-2024-1: $2.48 ON AC67 DISTRICT COURT REVOLVING FUND. CJ-2024-1: $25.00 ON AC79 OCIS REVOLVING FUND. CJ-2024-1: $10.00 ON AC81 LENGTHY TRIAL FUND. CJ-2024-1: $10.00 ON AC88 SHERIFF\u2019S SERVICE FEE FOR COURT HOUSE SECURITY. CJ-2024-1: $10.00 ON AC89 COURT CLERK'S RECORDS MANAGEMENT AND PRESERVATION FEE.",
+      "row_text": "01-02-2024 ACCOUNT RECEIPT # 2024-4572672 ON 01/02/2024. PAYOR: ROBINSON, HOOVER & FUDGE PLLC TOTAL AMOUNT PAID: $ 262.14. LINE ITEMS: CJ-2024-1: $183.00 ON AC01 CLERK FEES. CJ-2024-1: $6.00 ON AC23 LAW LIBRARY FEE CIVIL AND CRIMINAL. CJ-2024-1: $1.66 ON AC31 COURT CLERK REVOLVING FUND. CJ-2024-1: $5.00 ON AC58 OKLAHOMA COURT APPOINTED SPECIAL ADVOCATES. CJ-2024-1: $1.55 ON AC59 COUNCIL ON JUDICIAL COMPLAINTS REVOLVING FUND. CJ-2024-1: $7.00 ON AC64 DISPUTE MEDIATION FEES CIVIL ONLY. CJ-2024-1: $0.45 ON AC65 STATE JUDICIAL REVOLVING FUND, INTERPRETER SVCS. CJ-2024-1: $2.48 ON AC67 DISTRICT COURT REVOLVING FUND. CJ-2024-1: $25.00 ON AC79 OCIS REVOLVING FUND. CJ-2024-1: $10.00 ON AC81 LENGTHY TRIAL FUND. CJ-2024-1: $10.00 ON AC88 SHERIFF\u2019S SERVICE FEE FOR COURT HOUSE SECURITY. CJ-2024-1: $10.00 ON AC89 COURT CLERK'S RECORDS MANAGEMENT AND PRESERVATION FEE.",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-11-2024",
+      "code": "CTFREE",
+      "description": "NIGHTINGALE, REBECCA ORDER RESTRAINING DISPOSITION OF PROPERTY AND COMPELLING DEFENDANTS TO APPEAR AND DISCLOSE LOCATION OF PROPERTY ENTERED; HEARING IS SET FOR 02/27/2024 AT 10:00 A.M. IN COURTROOM 708. ((CLERK PLACED ORDER IN JUDGE'S OUTBOX TO BE PICKED UP FOR FILING.))",
+      "row_text": "01-11-2024 CTFREE NIGHTINGALE, REBECCA ORDER RESTRAINING DISPOSITION OF PROPERTY AND COMPELLING DEFENDANTS TO APPEAR AND DISCLOSE LOCATION OF PROPERTY ENTERED; HEARING IS SET FOR 02/27/2024 AT 10:00 A.M. IN COURTROOM 708. ((CLERK PLACED ORDER IN JUDGE'S OUTBOX TO BE PICKED UP FOR FILING.))",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-17-2024",
+      "code": "COPY",
+      "description": "COPIES CHARGED - 1",
+      "row_text": "01-17-2024 COPY COPIES CHARGED - 1 $ 1.00",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "01-17-2024",
+      "code": "O",
+      "description": "ORDER RESTRAINING DISPOSITION OF PROPERTY AND COMPELLING DEFENDANTS TO APPEAR AND DISCLOSE LOCATION OF PROPERTY",
+      "row_text": "01-17-2024 O ORDER RESTRAINING DISPOSITION OF PROPERTY AND COMPELLING DEFENDANTS TO APPEAR AND DISCLOSE LOCATION OF PROPERTY Document Available (#1057526940) TIFF PDF",
+      "doc_url": "https://www.oscn.net/dockets/GetDocument.aspx?ct=tulsa&bc=1057526940&cn=CJ-2024-1&fmt=pdf",
+      "has_pdf": true,
+      "has_tif": true
+    },
+    {
+      "date": "01-17-2024",
+      "code": "ACCOUNT",
+      "description": "RECEIPT # 2024-4577853 ON 01/17/2024. PAYOR: EMILY TOTAL AMOUNT PAID: $ 1.00. LINE ITEMS: CJ-2024-1: $1.00 ON AC01 CLERK FEES.",
+      "row_text": "01-17-2024 ACCOUNT RECEIPT # 2024-4577853 ON 01/17/2024. PAYOR: EMILY TOTAL AMOUNT PAID: $ 1.00. LINE ITEMS: CJ-2024-1: $1.00 ON AC01 CLERK FEES.",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "02-13-2024",
+      "code": "S",
+      "description": "PARTY HAS BEEN SUCCESSFULLY SERVED. BENJAMINE A RICHARDSON / 2/5/24",
+      "row_text": "02-13-2024 S PARTY HAS BEEN SUCCESSFULLY SERVED. BENJAMINE A RICHARDSON / 2/5/24 Document Available (#1057916527) TIFF PDF RICHARDSON, BENJAMINE A",
+      "doc_url": "https://www.oscn.net/dockets/GetDocument.aspx?ct=tulsa&bc=1057916527&cn=CJ-2024-1&fmt=pdf",
+      "has_pdf": true,
+      "has_tif": true
+    },
+    {
+      "date": "02-13-2024",
+      "code": "S",
+      "description": "PARTY HAS BEEN SUCCESSFULLY SERVED. JAMARIO DAMONT RICHARDSON / 2/7/24",
+      "row_text": "02-13-2024 S PARTY HAS BEEN SUCCESSFULLY SERVED. JAMARIO DAMONT RICHARDSON / 2/7/24 Document Available (#1057916523) TIFF PDF RICHARDSON, JAMARIO DAMONT",
+      "doc_url": "https://www.oscn.net/dockets/GetDocument.aspx?ct=tulsa&bc=1057916523&cn=CJ-2024-1&fmt=pdf",
+      "has_pdf": true,
+      "has_tif": true
+    },
+    {
+      "date": "02-27-2024",
+      "code": "CTFREE",
+      "description": "NIGHTINGALE, REBECCA CASE COMES ON FOR HEARING; DANI SCHINZING APPEARS FOR PLAINTIFF; BENJAMINE RICHARDSON APPEARS AS DEFENDANT; JAMARIO DAMONT RICHARDSON FAILS TO APPEAR; CONTEMPT PAPERWORK TO BE SUBMITTED; ORDER FOR DELIVERY ENTERED; COURT FINDS THAT THE DEFENDANTS, ACTING SEPERATELY OR IN COURT WITH OTHERS, HAVE WRONGFULLY RETAINED A 2017 NISSAN ROGUE SPORT AND HAS CONCEALED THE SAME AWAY FROM PLAINTIFF; YOU ARE THEREFORE COMMANDED TO REPLEVY THE VEHICLE IN POSSESSION OF THE DEFENDANTS, AND/OR ANY THIRD PERSONS, AND DELIVER OR RELINQUISH POSSESSION OF THE SAME TO THE PLAINTIFF. ((CLERK RETURNED ORDER TO COUNSEL FOR FILING.))",
+      "row_text": "02-27-2024 CTFREE NIGHTINGALE, REBECCA CASE COMES ON FOR HEARING; DANI SCHINZING APPEARS FOR PLAINTIFF; BENJAMINE RICHARDSON APPEARS AS DEFENDANT; JAMARIO DAMONT RICHARDSON FAILS TO APPEAR; CONTEMPT PAPERWORK TO BE SUBMITTED; ORDER FOR DELIVERY ENTERED; COURT FINDS THAT THE DEFENDANTS, ACTING SEPERATELY OR IN COURT WITH OTHERS, HAVE WRONGFULLY RETAINED A 2017 NISSAN ROGUE SPORT AND HAS CONCEALED THE SAME AWAY FROM PLAINTIFF; YOU ARE THEREFORE COMMANDED TO REPLEVY THE VEHICLE IN POSSESSION OF THE DEFENDANTS, AND/OR ANY THIRD PERSONS, AND DELIVER OR RELINQUISH POSSESSION OF THE SAME TO THE PLAINTIFF. ((CLERK RETURNED ORDER TO COUNSEL FOR FILING.))",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "03-04-2024",
+      "code": "O",
+      "description": "ORDER OF DELIVERY",
+      "row_text": "03-04-2024 O ORDER OF DELIVERY Document Available (#1057532487) TIFF PDF",
+      "doc_url": "https://www.oscn.net/dockets/GetDocument.aspx?ct=tulsa&bc=1057532487&cn=CJ-2024-1&fmt=pdf",
+      "has_pdf": true,
+      "has_tif": true
+    },
+    {
+      "date": "09-26-2024",
+      "code": "MODJ",
+      "description": "MOTION FOR ENTRY OF DEFAULT JUDGMENT / CERTIFICATE OF SERVICE / A - J",
+      "row_text": "09-26-2024 MODJ MOTION FOR ENTRY OF DEFAULT JUDGMENT / CERTIFICATE OF SERVICE / A - J Document Available (#1059409246) TIFF PDF",
+      "doc_url": "https://www.oscn.net/dockets/GetDocument.aspx?ct=tulsa&bc=1059409246&cn=CJ-2024-1&fmt=pdf",
+      "has_pdf": true,
+      "has_tif": true
+    },
+    {
+      "date": "09-26-2024",
+      "code": "ANMS",
+      "description": "AFFIDAVIT AS TO MILITARY SERVICE",
+      "row_text": "09-26-2024 ANMS AFFIDAVIT AS TO MILITARY SERVICE Document Available (#1059409287) TIFF PDF",
+      "doc_url": "https://www.oscn.net/dockets/GetDocument.aspx?ct=tulsa&bc=1059409287&cn=CJ-2024-1&fmt=pdf",
+      "has_pdf": true,
+      "has_tif": true
+    },
+    {
+      "date": "10-24-2024",
+      "code": "CTFREE",
+      "description": "NIGHTINGALE, REBECCA JUDGMENT SUBMITTED AND SIGNED BY THE COURT. A JUDGMENT, DECREE OR APPEALABLE ORDER, WHETHER INTERLOCUTORY OR FINAL, SHALL NOT BE ENFORCEABLE IN WHOLE OR IN PART UNLESS OR UNTIL IT IS SIGNED BY THE COURT AND FILED ACCORDING TO \u00a712-696.2. ((CLERK PLACED ORDER IN JUDGE'S OUTBOX TO BE PICKED UP FOR FILING.))",
+      "row_text": "10-24-2024 CTFREE NIGHTINGALE, REBECCA JUDGMENT SUBMITTED AND SIGNED BY THE COURT. A JUDGMENT, DECREE OR APPEALABLE ORDER, WHETHER INTERLOCUTORY OR FINAL, SHALL NOT BE ENFORCEABLE IN WHOLE OR IN PART UNLESS OR UNTIL IT IS SIGNED BY THE COURT AND FILED ACCORDING TO \u00a712-696.2. ((CLERK PLACED ORDER IN JUDGE'S OUTBOX TO BE PICKED UP FOR FILING.))",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "10-24-2024",
+      "code": "DISPCVDJ",
+      "description": "JUDGMENT SUBMITTED AND SIGNED BY THE COURT.",
+      "row_text": "10-24-2024 DISPCVDJ JUDGMENT SUBMITTED AND SIGNED BY THE COURT. 1 RICHARDSON, BENJAMINE A",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "10-24-2024",
+      "code": "DISPCVDJ",
+      "description": "JUDGMENT SUBMITTED AND SIGNED BY THE COURT.",
+      "row_text": "10-24-2024 DISPCVDJ JUDGMENT SUBMITTED AND SIGNED BY THE COURT. 1 RICHARDSON, JAMARIO DAMONT",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "10-24-2024",
+      "code": "DISPCVDJ",
+      "description": "JUDGMENT SUBMITTED AND SIGNED BY THE COURT.",
+      "row_text": "10-24-2024 DISPCVDJ JUDGMENT SUBMITTED AND SIGNED BY THE COURT. 2 RICHARDSON, BENJAMINE A",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "10-24-2024",
+      "code": "DISPCVDJ",
+      "description": "JUDGMENT SUBMITTED AND SIGNED BY THE COURT.",
+      "row_text": "10-24-2024 DISPCVDJ JUDGMENT SUBMITTED AND SIGNED BY THE COURT. 2 RICHARDSON, JAMARIO DAMONT",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "10-25-2024",
+      "code": "JUDG",
+      "description": "JUDGMENT AGAINST DEFS",
+      "row_text": "10-25-2024 JUDG JUDGMENT AGAINST DEFS Document Available (#1059678907) TIFF PDF RICHARDSON, JAMARIO DAMONT",
+      "doc_url": "https://www.oscn.net/dockets/GetDocument.aspx?ct=tulsa&bc=1059678907&cn=CJ-2024-1&fmt=pdf",
+      "has_pdf": true,
+      "has_tif": true
+    },
+    {
+      "date": "10-25-2024",
+      "code": "STAY",
+      "description": "STAY EXECUTION UNTIL 11-4-24",
+      "row_text": "10-25-2024 STAY STAY EXECUTION UNTIL 11-4-24",
+      "doc_url": null,
+      "has_pdf": false,
+      "has_tif": false
+    },
+    {
+      "date": "11-19-2024",
+      "code": "CERTS",
+      "description": "CERTIFICATE OF SERVICE",
+      "row_text": "11-19-2024 CERTS CERTIFICATE OF SERVICE Document Available (#1060213155) TIFF PDF",
+      "doc_url": "https://www.oscn.net/dockets/GetDocument.aspx?ct=tulsa&bc=1060213155&cn=CJ-2024-1&fmt=pdf",
+      "has_pdf": true,
+      "has_tif": true
+    },
+    {
+      "date": "11-19-2024",
+      "code": "CERTS",
+      "description": "CERTIFICATE OF SERVICE",
+      "row_text": "11-19-2024 CERTS CERTIFICATE OF SERVICE Document Available (#1060213151) TIFF PDF",
+      "doc_url": "https://www.oscn.net/dockets/GetDocument.aspx?ct=tulsa&bc=1060213151&cn=CJ-2024-1&fmt=pdf",
+      "has_pdf": true,
+      "has_tif": true
+    }
+  ]
+}

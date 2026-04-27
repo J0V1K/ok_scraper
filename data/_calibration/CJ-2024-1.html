@@ -1,0 +1,1977 @@
+<!DOCTYPE html><html lang="en-US" class=" js flexbox canvas canvastext webgl no-touch geolocation postmessage no-websqldatabase indexeddb hashchange history draganddrop websockets rgba hsla multiplebgs backgroundsize borderimage borderradius boxshadow textshadow opacity cssanimations csscolumns cssgradients cssreflections csstransforms csstransforms3d csstransitions fontface generatedcontent video audio localstorage sessionstorage webworkers no-applicationcache svg inlinesvg smil svgclippaths" style=""><!--<![endif]--><head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>
+    OSCN Case Details
+  </title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+		<link rel="stylesheet" type="text/css" href="/wp-content/themes/oscn-theme/navigation-style.css?v=1.0.1">
+		<script src="/datafiles/ext/javascript-navigation/?v=1.0.0"></script>	
+        <link rel="stylesheet" href="/assets/css/normalize.min.css">
+        <link rel="stylesheet" href="/assets/css/main.css">
+        <link rel="stylesheet" href="/assets/css/bootstrap-2.3.2.min.css">
+		<link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-Bx4pytHkyTDy3aJKjGkGoHPt3tvv6zlwwjc3iqN7ktaiEMLDPqLSZYts2OjKcBx1" crossorigin="anonymous">		
+		<!--<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">-->
+		<link rel="stylesheet" href="/assets/css/oscn-navigation.css">
+        <!--<link rel="stylesheet" href="/assets/css/oscn-footer.css">-->
+<style>
+.bold {
+	font-weight: bold;
+}
+.docket-first-column {
+	display: inline-block;
+	width: 125px;
+	text-align: center;
+}
+.docketlist th:nth-child(2){
+	display: none;
+}
+.docketlist td:nth-child(2){
+	display: none;
+}
+.docketlist,.docketlist tr {
+	position: relative;
+}
+.docketlist th:nth-child(3) {
+	position: absolute;
+	left: 10em;
+}
+span.partyname {
+	font-size: 0.75rem;
+}
+.docketlist td:nth-child(3) .description-wrapper{
+	margin-top: 1.75em;
+	position: relative;
+	margin-left: -3.5em;
+	padding-right: 1em;
+}
+/*------ kellpro remove space on additional text*/
+.addtl-text .description-wrapper{
+	margin-top: 0!important;
+}
+.addtl-text .docket_code {
+	display: none;
+}
+.docketlist td:nth-child(1) {
+	font-weight: bold;
+}
+.docketlist th:nth-child(4),
+.docketlist td:nth-child(4){
+	position: absolute; 
+	right: 6em;
+}
+.docketlist th:nth-child(5),
+.docketlist td:nth-child(5){
+	position: absolute; 
+	right: 10em;
+}
+.docketlist th:nth-child(6),
+.docketlist td:nth-child(6){
+	position: absolute; 
+	right: 0;
+}
+.docketlist th:nth-child(2),
+.docketlist td:nth-child(2){
+	display: table-cell;
+	position: absolute; 
+	left: 6.1em;
+	font-weight: bold;
+}
+
+.docketRow td {
+	border-bottom: none!important;
+	border-top: none!important;
+}
+/*
+.docketlist td:nth-child(1),
+.docketlist td:nth-child(3){
+	border-bottom: gray solid 1px!important;
+}
+*/
+.primary-entry {
+	overflow: hidden;
+}
+.primary-entry td {
+	position: relative;
+}
+.primary-entry > td:before {
+	content: '';
+	border-top: 1px solid gray;
+	display: block;
+	position: absolute;
+	top: -1px;
+	width: 100%;
+}
+.kp.docketlist td:nth-child(1),
+.kp.docketlist td:nth-child(3){
+	//border-bottom: #cecece solid 1px!important;
+}
+
+
+
+@media print {
+	.docketlist thead {
+		display: table-row;
+	}
+	.description-wrapper img { display: none; }
+	thead, thead tr {
+		position: relative!important;
+		width: 100%;
+	}
+}
+@media screen and (max-width:768px){
+	.docketlist td:nth-child(2){
+		display: none;
+		font-size: smaller;
+	}
+}
+.partyname:after {
+	content:'\f007';
+	font-family: "Font Awesome 5 Pro";
+    font-weight: 900;
+	position: relative;
+	right: -0.25em;
+}
+.count_issue:before {
+	content:'\f292';
+	font-family: "Font Awesome 5 Pro";
+    font-weight: 900;
+}
+.docket_code:before {
+	content:'[';
+	font-family: "Font Awesome 5 Pro";	
+	position: relative;
+	left: -0.25em;
+}
+.docket_code:after {
+	content:']';
+	font-family: "Font Awesome 5 Pro";	
+	position: relative;
+	right: -0.25em;
+}
+.warrant .docket_code:before {
+	content:'[ \f06e';
+	font-family: "Font Awesome 5 Pro";
+	left: -0.25em;
+	font-weight: 900;
+}
+.return-warrant .docket_code:before {
+	content:'[ \f0e2';
+	font-family: "Font Awesome 5 Pro";
+	left: -0.25em;
+	font-weight: 900;
+}
+.doc-tif:before {
+	content: '\f15b';
+	font-family: "Font Awesome 5 Pro";
+	left: -0.25em;
+	color: black;
+}
+.doc-pdf:before {
+	content: '\f1c1';
+	font-family: "Font Awesome 5 Pro";
+	left: -0.25em;
+	color: #FF0000;
+}
+
+
+/*COUNTS*/
+@media screen and (max-width:1024px){
+	
+	/*SHORTSTYLE*/
+	.caseStyle td ~ td{
+		width: 33%;
+	}
+	/*END SHORTSTYLE*/
+	
+    .Disposition td, .Disposition th, .Counts td {
+        display: block;    
+    }
+    
+    .dispositionInformation, .paddedContainer, .partyName {
+        display: none!important;
+    }
+    
+    .CountsContainer ~ .CountsContainer {
+        border-top: 3px solid silver;
+    }
+    
+    .CountDescription {
+        padding-left: 1.75rem;
+    }
+    
+    .Disposition th,
+    .Disposition td {
+        padding-left: 14px;
+    }
+    
+    .countpartyname:before {
+        content: 'Party Name: ';
+        font-weight: bold;
+        white-space: nowrap;
+    }
+    .countdisposition, .countdisposition {
+        margin-left: 1rem;
+    }
+    
+    .Disposition tbody tr ~ tr {
+        display: block;
+        margin-top: 0.5rem;
+        border-top: 1px silver dashed
+    }
+}
+
+
+/*EVENTS*/
+@media screen and (max-width:1024px){
+	.events_table td {
+		display: block;
+	}
+	td.event_partyname.empty, td.event_reporter.empty, td.event_judge.empty {
+		display: none;
+	}
+
+	td.event_partyname:before,
+	td.event_reporter:before,
+	td.event_judge:before {
+		font-weight: 600; 
+	}
+	td.event_partyname:before { content: 'Party Name: '; }
+	td.event_reporter:before { content: 'Reporter: '; }
+	td.event_judge:before { content: 'Docket: '; }
+
+	span.nbsps { display: none; }
+
+	.events_table tr ~ tr {
+		border-top: 1px dashed silver;
+		padding: 0.25rem
+	}
+	.events_table tr{
+		padding-left: 0.5rem;
+		display: block;
+	}
+	td.event_partyname,
+	td.event_reporter,
+	td.event_judge
+	{
+		padding-left: 2rem;
+		font-size: 12px
+	}
+
+	.events_table thead {
+		display: none;    
+	}
+}
+  </style>
+<style>
+	.notice-container {
+		display: table;
+	}
+	.notice, .track-case {
+		display: table-cell;
+	} 
+	.track-case {
+		vertical-align: middle;
+	}	
+  .track-case-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: #ffffff;
+    border: 1px solid #d9d9d9;
+    border-radius: 999px;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: #111111;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition: background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+	width: 150px;
+  }
+
+  .track-case-btn:hover {
+    background: #f8f8f8;
+    border-color: #cfcfcf;
+  }
+
+  .track-case-btn:focus {
+    outline: 2px solid #1a73e8;
+    outline-offset: 2px;
+  }
+
+  .track-case-icon {
+    width: 28px;
+    height: 28px;
+    border: 1px solid #d9d9d9;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+    background: #ffffff;
+  }
+
+  .track-case-text {
+    white-space: nowrap;
+  }
+@media (max-width: 768px) {
+	.notice, .track-case {
+		display: block;
+	}
+	.track-case {
+		text-align: center;	
+	}
+	.track-case-btn {
+		margin: auto;
+		margin-top: 4px;
+		margin-bottom: 4px;
+	}
+}  
+  </style>
+<!-- /STYLESHEET_INLINE/ -->
+        <script src="/assets/js/modernizr-2.6.2.min.js"></script>
+		<!--[if lt IE 9]>	
+		<script src="/assets/js/respond.min.js"></script>
+		<script>
+		window.onload = function() {
+			setTimeout(function(){				
+				var height = $(".footer").outerHeight(true);
+				$("#oscn-content").css("padding-bottom", function(){
+					return height;
+				});}, 2000);
+		}
+		</script>
+		<![endif]-->
+        <script src="/assets/js/cookies.js"></script>			
+<!-- /JAVASCRIPT_TOP/ -->
+    <link rel="stylesheet" type="text/css" href="https://www.oscn.net/wp-content/themes/oscn-theme/alerts.css"><link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/flexboxgrid/6.3.1/flexboxgrid.min.css"><script src="https://cdnjs.cloudflare.com/ajax/libs/mustache.js/4.1.0/mustache.min.js" type="text/javascript"></script><script src="/wp-content/plugins/oscn-navigation-panel-update/js/navigation.js?v=1.0.1" type="text/javascript"></script><script src="https://www.oscn.net/wp-content/themes/oscn-theme/alerts.js" type="text/javascript"></script></head>
+    <body>
+	<div class="wrapper">
+<!-- /ERRORMESSAGE/ -->
+	
+	<header id="masthead" class="site-header oscn-navigation" data-elastic-exclude="" style="">
+			<a class="skip-nav" href="#skip-navigation" data-elastic-exclude="">Skip Navigation</a>
+			<div class="nav_container">
+				<a class="oscn-brand" href="/">
+					<div class="oscn-brand-container">
+						<div class="oscn-logo"><img alt="OSCN logo" src="https://www.oscn.net/static/supreme-court-seal-updated-color.svg"></div>
+						<div class="oscn-full-name"><span>OKLAHOMA <br>STATE <br>COURTS <br>NETWORK </span></div>
+						<div class="oscn-abbreviation"><span>OSCN</span></div>
+					</div>
+				</a>
+				<nav id="site-navigation" class="navigation">
+					<button id="toggle" aria-label="navigation"></button>
+					<div class="row">
+	<button aria-controls="courts" data-panel-id="courts" class="col-xs-12 col-sm col md col-lg courts" aria-expanded="false" aria-haspopup="true"><span>Courts</span></button><div class="nav_panel" hidden="" id="courts"><div class="panel_container"> <h2 class="wp-block-heading">Courts</h2>   <div class="has_sub_panel"><h3 class="supreme-court"><a sub-panel-id="supreme-court-57" aria-expanded="false" aria-haspopup="true" href="/#supreme-court" onclick="event.preventDefault();">Supreme Court</a></h3><div class="sub_panel supreme-court-57" hidden=""><span class="sub_panel_title">Supreme Court</span> <h4 class="wp-block-heading"><a href="https://www.oscn.net/applications/oscn/SimpleHelp.asp?HelpContextID=84" data-type="page" data-id="22">Contact</a></h4>    <h4 class="wp-block-heading"><a href="https://oksc.oscn.net/">Supreme Court Website</a></h4>    <h4 class="wp-block-heading"><a href="#list-justices" data-toggle="shrink" aria-expanded="true" aria-controls="list-justices"><span>Justices</span></a></h4>    <ul id="list-justices" class="wp-block-list shrink show"> <li class="link-rowe"><a href="https://oksc.oscn.net/justices/dustin-p-rowe/">Dustin P. Rowe</a> – <em>Chief Justice</em></li>    <li class="link-kuehn"><a href="https://oksc.oscn.net/justices/dana-kuehn/">Dana Kuehn</a> – <em>Vice-Chief Justice</em></li>    <li class="link-winchester"><a href="https://oksc.oscn.net/justices/james-r-winchester/">James R. Winchester</a></li>    <li class="link-edmondson"><a href="https://oksc.oscn.net/justices/james-e-edmondson/">James E. Edmondson</a></li>    <li class="link-combs"><a href="https://oksc.oscn.net/justices/douglas-l-combs/">Douglas L. Combs</a></li>    <li class="link-gurich"><a href="https://oksc.oscn.net/justices/noma-gurich/">Noma Gurich</a></li>    <li class="link-darby"><a href="https://oksc.oscn.net/justices/richard-darby/">Richard Darby</a></li>    <li class="link-kane"><a href="https://oksc.oscn.net/justices/john-kane-iv/">M. John Kane IV</a></li>    <li class="link-jett"><a href="https://oksc.oscn.net/justices/justice-travis-jett/">Travis Jett</a></li> </ul>    <h4 class="wp-block-heading"><a href="https://www.oscn.net/decisions/ok/30">Recent Opinions</a></h4>    <h4 class="wp-block-heading"><a href="https://www.oscn.net/mailinglist/">Mailing List</a></h4>    <h4 class="wp-block-heading"><a href="https://www.oscn.net/dockets/Search.aspx#appellate">Dockets</a></h4>    <h4 class="wp-block-heading"><a href="http://www.oscn.net/sites/judicialnominatingcommission/documents/Supreme-Court-Judicial-Districts.pdf?d=202541714">Judicial Districts – Supreme Court</a></h4> </div></div>   <div class="has_sub_panel"><h3 class="court-of-criminal-appeals"><a sub-panel-id="court-of-criminal-appeals-60" aria-expanded="false" aria-haspopup="true" href="/#court-of-criminal-appeals" onclick="event.preventDefault();">Court of Criminal Appeals</a></h3><div class="sub_panel court-of-criminal-appeals-60" hidden=""><span class="sub_panel_title">Court of Criminal Appeals</span> <h4 class="wp-block-heading"><a href="https://www.oscn.net/applications/oscn/SimpleHelp.asp?HelpContextID=84" data-type="page" data-id="22">Contact</a></h4>    <h4 class="wp-block-heading"><a href="http://www.okcca.net/">OCCA Website</a></h4>    <h4 class="wp-block-heading"><a href="#list-occa" data-toggle="shrink" aria-expanded="true" aria-controls="list-occa"><span>Judges</span></a></h4>    <ul id="list-occa" class="wp-block-list shrink show"> <li class="link-lumpkin"><a class="" href="http://okcca.net/judges/gary-l-lumpkin/">Gary Lumpkin</a> – Presiding</li>    <li class="link-musseman"><a class="" href="http://okcca.net/judges/william-musseman/">William J. Musseman</a> – Vice Presiding</li>    <li class="link-hudson"><a class="" href="http://okcca.net/judges/robert-l-hudson/">Robert Hudson</a></li>    <li class="link-lewis"><a class="" href="http://okcca.net/judges/david-b-lewis/">David Lewis</a></li>    <li class="link-rowland"><a class="" href="http://okcca.net/judges/scott-rowland/">Scott Rowland</a></li> </ul>    <h4 class="wp-block-heading"><a href="https://www.oscn.net/decisions/ok-cr/30">Recent Opinions</a></h4>    <h4 class="wp-block-heading"><a href="https://www.oscn.net/mailinglist/">Mailing List</a></h4>    <h4 class="wp-block-heading"><a href="https://www.oscn.net/dockets/Search.aspx#appellate">Dockets</a></h4>    <h4 class="wp-block-heading"><a href="http://www.oscn.net/sites/judicialnominatingcommission/documents/Criminal%20Appeals.pdf">Judicial Districts – OCCA</a></h4> </div></div>   <div class="has_sub_panel"><h3 class="court-of-civil-appeals"><a sub-panel-id="court-of-civil-appeals-67" aria-expanded="false" aria-haspopup="true" href="/#court-of-civil-appeals" onclick="event.preventDefault();">Court of Civil Appeals</a></h3><div class="sub_panel court-of-civil-appeals-67" hidden=""><span class="sub_panel_title">Court of Civil Appeals</span> <h4 class="wp-block-heading"><a href="https://www.oscn.net/applications/oscn/SimpleHelp.asp?HelpContextID=84" data-type="page" data-id="22">Contact</a></h4>    <h4 class="wp-block-heading"><a href="#list-coca" data-toggle="shrink" aria-expanded="true" aria-controls="list-coca"><span>Judges</span></a></h4>    <ul id="list-coca" class="wp-block-list shrink show"> <li class="link-barnes"><a href="https://www.oscn.net/static/coca-biographies.pdf#page=2">Barnes, Deborah</a></li>    <li class="link-bell"><a href="https://www.oscn.net/static/coca-biographies.pdf#page=4">Bell, Robert D.</a></li>    <li class="link-blackwell"><a href="https://www.oscn.net/static/coca-biographies.pdf#page=5">Blackwell, Gregory C.</a></li>    <li class="link-downing"><a href="https://www.oscn.net/static/coca-biographies.pdf#page=6">Downing, Timothy J.</a></li>    <li class="link-fischer"><a href="https://www.oscn.net/static/coca-biographies.pdf#page=7">Fischer, John F.</a></li>    <li class="link-goree"><a href="https://www.oscn.net/static/coca-biographies.pdf#page=8">Goree, Brian Jack</a></li>    <li class="link-hixon"><a href="https://www.oscn.net/static/coca-biographies.pdf#page=9">Hixon, Stacie L.</a></li>    <li class="link-huber"><a href="https://www.oscn.net/static/coca-biographies.pdf#page=10">Huber, James</a></li>    <li class="link-mitchell"><a href="https://www.oscn.net/static/coca-biographies.pdf#page=11">Mitchell, III, E. Bay</a></li>    <li class="link-prince"><a href="https://www.oscn.net/static/coca-biographies.pdf#page=12">Prince, Thomas E.</a></li>    <li class="link-swinton"><a href="https://www.oscn.net/static/coca-biographies.pdf#page=13">Swinton, Barbara</a></li>    <li class="link-wiseman"><a href="https://www.oscn.net/static/coca-biographies.pdf#page=15">Wiseman, Jane P.</a></li> </ul>    <h4 class="wp-block-heading"><a href="https://www.oscn.net/applications/oscn/Index.asp?ftdb=STOKCSCV">Recent Opinions</a></h4>    <h4 class="wp-block-heading"><a href="https://www.oscn.net/mailinglist/">Mailing List</a></h4>    <h4 class="wp-block-heading"><a href="https://www.oscn.net/dockets/Search.aspx#appellate">Dockets</a></h4>    <h4 class="wp-block-heading"><a href="https://www.oscn.net/jnc/doc/court-of-civil-appeals-electoral-districts.pdf">Judicial Districts – COCA</a></h4> </div></div>    <hr class="wp-block-separator has-alpha-channel-opacity">    <h3 class="wp-block-heading"><a href="https://www.oscn.net/decisions/">Recent Appellate Opinions</a></h3>    <hr class="wp-block-separator has-alpha-channel-opacity">    <h3 class="wp-block-heading"><a href="http://www.oscn.net/static/JudicialDirectory.pdf">Judicial Pictorial Directory</a></h3>    <hr class="wp-block-separator has-alpha-channel-opacity">    <h3 class="wp-block-heading"><a href="https://www.oscn.net/courts/" data-type="link" data-id="https://www.oscn.net/courts/">District Courts</a></h3>   <div class="county-list">
+		<div>
+			<a data-toggle-group="county-list" data-toggle="shrink" href="#alpha-0-1" aria-expanded="false" aria-controls="alpha-0-1"><span>A - B</span></a>
+			<div class="shrink county-list" id="alpha-0-1">
+				<h4 class="heading-A">A</h4><ul><li><a class="county-link" href="/courts/adair"><span class="county-name">Adair</span></a> <span class="county-seat">Stilwell</span></li><li><a class="county-link" href="/courts/alfalfa"><span class="county-name">Alfalfa</span></a> <span class="county-seat">Cherokee</span></li><li><a class="county-link" href="/courts/atoka"><span class="county-name">Atoka</span></a> <span class="county-seat">Atoka</span></li></ul><h4 class="heading-B">B</h4><ul><li><a class="county-link" href="/courts/beaver"><span class="county-name">Beaver</span></a> <span class="county-seat">Beaver</span></li><li><a class="county-link" href="/courts/beckham"><span class="county-name">Beckham</span></a> <span class="county-seat">Sayre</span></li><li><a class="county-link" href="/courts/blaine"><span class="county-name">Blaine</span></a> <span class="county-seat">Watonga</span></li><li><a class="county-link" href="/courts/bryan"><span class="county-name">Bryan</span></a> <span class="county-seat">Durant</span></li></ul>
+			</div>
+		</div>
+		
+		<div>
+			<a data-toggle-group="county-list" data-toggle="shrink" href="#alpha-0-2" aria-expanded="false" aria-controls="alpha-0-2"><span>C</span></a>
+			<div class="shrink county-list" id="alpha-0-2">
+				<h4 class="heading-C">C</h4><ul><li><a class="county-link" href="/courts/caddo"><span class="county-name">Caddo</span></a> <span class="county-seat">Anadarko</span></li><li><a class="county-link" href="/courts/canadian"><span class="county-name">Canadian</span></a> <span class="county-seat">El Reno</span></li><li><a class="county-link" href="/courts/carter"><span class="county-name">Carter</span></a> <span class="county-seat">Ardmore</span></li><li><a class="county-link" href="/courts/cherokee"><span class="county-name">Cherokee</span></a> <span class="county-seat">Tahlequah</span></li><li><a class="county-link" href="/courts/choctaw"><span class="county-name">Choctaw</span></a> <span class="county-seat">Hugo</span></li><li><a class="county-link" href="/courts/cimarron"><span class="county-name">Cimarron</span></a> <span class="county-seat">Boise City</span></li><li><a class="county-link" href="/courts/cleveland"><span class="county-name">Cleveland</span></a> <span class="county-seat">Norman</span></li><li><a class="county-link" href="/courts/coal"><span class="county-name">Coal</span></a> <span class="county-seat">Coalgate</span></li><li><a class="county-link" href="/courts/comanche"><span class="county-name">Comanche</span></a> <span class="county-seat">Lawton</span></li><li><a class="county-link" href="/courts/cotton"><span class="county-name">Cotton</span></a> <span class="county-seat">Walters</span></li><li><a class="county-link" href="/courts/craig"><span class="county-name">Craig</span></a> <span class="county-seat">Vinita</span></li><li><a class="county-link" href="/courts/creek"><span class="county-name">Creek</span></a> <span class="county-seat">Sapulpa</span></li><li><a class="county-link" href="/courts/custer"><span class="county-name">Custer</span></a> <span class="county-seat">Arapaho</span></li></ul>
+			</div>
+		</div>
+		
+		<div>
+			<a data-toggle-group="county-list" data-toggle="shrink" href="#alpha-0-3" aria-expanded="false" aria-controls="alpha-0-3"><span>D - E - F - G</span></a>
+			<div class="shrink county-list" id="alpha-0-3">
+				<h4 class="heading-D">D</h4><ul><li><a class="county-link" href="/courts/delaware"><span class="county-name">Delaware</span></a> <span class="county-seat">Jay</span></li><li><a class="county-link" href="/courts/dewey"><span class="county-name">Dewey</span></a> <span class="county-seat">Taloga</span></li></ul><h4 class="heading-E">E</h4><ul><li><a class="county-link" href="/courts/ellis"><span class="county-name">Ellis</span></a> <span class="county-seat">Arnett</span></li></ul><h4 class="heading-G">G</h4><ul><li><a class="county-link" href="/courts/garfield"><span class="county-name">Garfield</span></a> <span class="county-seat">Enid</span></li><li><a class="county-link" href="/courts/garvin"><span class="county-name">Garvin</span></a> <span class="county-seat">Pauls Valley</span></li><li><a class="county-link" href="/courts/grady"><span class="county-name">Grady</span></a> <span class="county-seat">Chickasha</span></li><li><a class="county-link" href="/courts/grant"><span class="county-name">Grant</span></a> <span class="county-seat">Medford</span></li><li><a class="county-link" href="/courts/greer"><span class="county-name">Greer</span></a> <span class="county-seat">Mangum</span></li></ul>
+			</div>
+		</div>
+		
+		<div>
+			<a data-toggle-group="county-list" data-toggle="shrink" href="#alpha-0-4" aria-expanded="false" aria-controls="alpha-0-4"><span>H - I - J - K</span></a>
+			<div class="shrink county-list" id="alpha-0-4">
+				<h4 class="heading-H">H</h4><ul><li><a class="county-link" href="/courts/harmon"><span class="county-name">Harmon</span></a> <span class="county-seat">Hollis</span></li><li><a class="county-link" href="/courts/harper"><span class="county-name">Harper</span></a> <span class="county-seat">Buffalo</span></li><li><a class="county-link" href="/courts/haskell"><span class="county-name">Haskell</span></a> <span class="county-seat">Stigler</span></li><li><a class="county-link" href="/courts/hughes"><span class="county-name">Hughes</span></a> <span class="county-seat">Holdenville</span></li></ul><h4 class="heading-J">J</h4><ul><li><a class="county-link" href="/courts/jackson"><span class="county-name">Jackson</span></a> <span class="county-seat">Altus</span></li><li><a class="county-link" href="/courts/jefferson"><span class="county-name">Jefferson</span></a> <span class="county-seat">Waurika</span></li><li><a class="county-link" href="/courts/johnston"><span class="county-name">Johnston</span></a> <span class="county-seat">Tishomingo</span></li></ul><h4 class="heading-K">K</h4><ul><li><a class="county-link" href="/courts/kay"><span class="county-name">Kay</span></a> <span class="county-seat">Newkirk</span></li><li><a class="county-link" href="/courts/kingfisher"><span class="county-name">Kingfisher</span></a> <span class="county-seat">Kingfisher</span></li><li><a class="county-link" href="/courts/kiowa"><span class="county-name">Kiowa</span></a> <span class="county-seat">Hobart</span></li></ul>
+			</div>
+		</div>
+		
+		<div>
+			<a data-toggle-group="county-list" data-toggle="shrink" href="#alpha-0-5" aria-expanded="false" aria-controls="alpha-0-5"><span>L - M - N</span></a>
+			<div class="shrink county-list" id="alpha-0-5">
+				<h4 class="heading-L">L</h4><ul><li><a class="county-link" href="/courts/latimer"><span class="county-name">Latimer</span></a> <span class="county-seat">Wilburton</span></li><li><a class="county-link" href="/courts/leflore"><span class="county-name">LeFlore</span></a> <span class="county-seat">Poteau</span></li><li><a class="county-link" href="/courts/lincoln"><span class="county-name">Lincoln</span></a> <span class="county-seat">Chandler</span></li><li><a class="county-link" href="/courts/logan"><span class="county-name">Logan</span></a> <span class="county-seat">Guthrie</span></li><li><a class="county-link" href="/courts/love"><span class="county-name">Love</span></a> <span class="county-seat">Marietta</span></li></ul><h4 class="heading-M">M</h4><ul><li><a class="county-link" href="/courts/major"><span class="county-name">Major</span></a> <span class="county-seat">Fairview</span></li><li><a class="county-link" href="/courts/marshall"><span class="county-name">Marshall</span></a> <span class="county-seat">Madill</span></li><li><a class="county-link" href="/courts/mayes"><span class="county-name">Mayes</span></a> <span class="county-seat">Pryor</span></li><li><a class="county-link" href="/courts/mcclain"><span class="county-name">McClain</span></a> <span class="county-seat">Purcell</span></li><li><a class="county-link" href="/courts/mccurtain"><span class="county-name">McCurtain</span></a> <span class="county-seat">Idabel</span></li><li><a class="county-link" href="/courts/mcintosh"><span class="county-name">McIntosh</span></a> <span class="county-seat">Eufaula</span></li><li><a class="county-link" href="/courts/murray"><span class="county-name">Murray</span></a> <span class="county-seat">Sulphur</span></li><li><a class="county-link" href="/courts/muskogee"><span class="county-name">Muskogee</span></a> <span class="county-seat">Muskogee</span></li></ul><h4 class="heading-N">N</h4><ul><li><a class="county-link" href="/courts/noble"><span class="county-name">Noble</span></a> <span class="county-seat">Perry</span></li><li><a class="county-link" href="/courts/nowata"><span class="county-name">Nowata</span></a> <span class="county-seat">Nowata</span></li></ul>
+			</div>
+		</div>
+		
+		<div>
+			<a data-toggle-group="county-list" data-toggle="shrink" href="#alpha-0-6" aria-expanded="false" aria-controls="alpha-0-6"><span>O - P - Q - R</span></a>
+			<div class="shrink county-list" id="alpha-0-6">
+				<h4 class="heading-O">O</h4><ul><li><a class="county-link" href="/courts/okfuskee"><span class="county-name">Okfuskee</span></a> <span class="county-seat">Okemah</span></li><li><a class="county-link" href="/courts/oklahoma"><span class="county-name">Oklahoma</span></a> <span class="county-seat">Oklahoma City</span></li><li><a class="county-link" href="/courts/okmulgee"><span class="county-name">Okmulgee</span></a> <span class="county-seat">Okmulgee</span></li><li><a class="county-link" href="/courts/osage"><span class="county-name">Osage</span></a> <span class="county-seat">Pawhuska</span></li><li><a class="county-link" href="/courts/ottawa"><span class="county-name">Ottawa</span></a> <span class="county-seat">Miami</span></li></ul><h4 class="heading-P">P</h4><ul><li><a class="county-link" href="/courts/pawnee"><span class="county-name">Pawnee</span></a> <span class="county-seat">Pawnee</span></li><li><a class="county-link" href="/courts/payne"><span class="county-name">Payne</span></a> <span class="county-seat">Stillwater</span></li><li><a class="county-link" href="/courts/pittsburg"><span class="county-name">Pittsburg</span></a> <span class="county-seat">McAlester</span></li><li><a class="county-link" href="/courts/pontotoc"><span class="county-name">Pontotoc</span></a> <span class="county-seat">Ada</span></li><li><a class="county-link" href="/courts/pottawatomie"><span class="county-name">Pottawatomie</span></a> <span class="county-seat">Shawnee</span></li><li><a class="county-link" href="/courts/pushmataha"><span class="county-name">Pushmataha</span></a> <span class="county-seat">Antlers</span></li></ul><h4 class="heading-R">R</h4><ul><li><a class="county-link" href="/courts/roger-mills"><span class="county-name">Roger Mills</span></a> <span class="county-seat">Cheyenne</span></li><li><a class="county-link" href="/courts/rogers"><span class="county-name">Rogers</span></a> <span class="county-seat">Claremore</span></li></ul>
+			</div>
+		</div>
+		
+		<div>
+			<a data-toggle-group="county-list" data-toggle="shrink" href="#alpha-0-7" aria-expanded="false" aria-controls="alpha-0-7"><span>S - T - U - V - W</span></a>
+			<div class="shrink county-list" id="alpha-0-7">
+				<h4 class="heading-S">S</h4><ul><li><a class="county-link" href="/courts/seminole"><span class="county-name">Seminole</span></a> <span class="county-seat">Wewoka</span></li><li><a class="county-link" href="/courts/sequoyah"><span class="county-name">Sequoyah</span></a> <span class="county-seat">Sallisaw</span></li><li><a class="county-link" href="/courts/stephens"><span class="county-name">Stephens</span></a> <span class="county-seat">Duncan</span></li></ul><h4 class="heading-T">T</h4><ul><li><a class="county-link" href="/courts/texas"><span class="county-name">Texas</span></a> <span class="county-seat">Guymon</span></li><li><a class="county-link" href="/courts/tillman"><span class="county-name">Tillman</span></a> <span class="county-seat">Frederick</span></li><li><a class="county-link" href="/courts/tulsa"><span class="county-name">Tulsa</span></a> <span class="county-seat">Tulsa</span></li></ul><h4 class="heading-W">W</h4><ul><li><a class="county-link" href="/courts/wagoner"><span class="county-name">Wagoner</span></a> <span class="county-seat">Wagoner</span></li><li><a class="county-link" href="/courts/washington"><span class="county-name">Washington</span></a> <span class="county-seat">Bartlesville</span></li><li><a class="county-link" href="/courts/washita"><span class="county-name">Washita</span></a> <span class="county-seat">Cordell</span></li><li><a class="county-link" href="/courts/woods"><span class="county-name">Woods</span></a> <span class="county-seat">Alva</span></li><li><a class="county-link" href="/courts/woodward"><span class="county-name">Woodward</span></a> <span class="county-seat">Woodward</span></li></ul>
+			</div>
+		</div>
+		</div>   <div class="has_sub_panel"><h3 class="district-courts-links"><a sub-panel-id="district-courts-links-52" aria-expanded="false" aria-haspopup="true" href="/#district-courts-links" onclick="event.preventDefault();">District Courts Links</a></h3><div class="sub_panel district-courts-links-52" hidden=""><span class="sub_panel_title">District Courts Links</span> <ul class="wp-block-list"> <li><a href="http://www.oscn.net/static/JudicialDirectory.pdf?d=2024112014" target="_blank" rel="noreferrer noopener">Judicial Pictorial Directory</a></li>    <li><a href="http://www.oscn.net/sites/judicialnominatingcommission/documents/PJs-Administrative-Districts.pdf?d=2024112014" target="_blank" rel="noreferrer noopener">Presiding Judges – Judicial Administrative Districts</a></li>    <li><a href="http://www.oscn.net/sites/judicialnominatingcommission/documents/District-Court-Judicial-Districts.pdf?d=2024112014" target="_blank" rel="noreferrer noopener">District Court Judicial Districts</a></li>    <li><a href="http://www.oscn.net/applications/oscn/DeliverDocument.asp?CiteID=484036">Active Retired Judges</a></li>    <li><a href="http://www.oscn.net/forms/aoc_form/adobe/application-for-active-retired-status.pdf?d=2024112014" target="_blank" rel="noreferrer noopener">Application for Active Retired Status</a></li> </ul>    <p> </p></div></div>    <hr class="wp-block-separator has-alpha-channel-opacity">    <h3 class="wp-block-heading offsite"><a href="http://www.owcc.state.ok.us/">Workers’ Compensation</a></h3> </div></div><button aria-controls="dockets" data-panel-id="dockets" class="col-xs-12 col-sm col md col-lg dockets" aria-expanded="false" aria-haspopup="true"><span>Dockets</span></button><div class="nav_panel" hidden="" id="dockets"><div class="panel_container"> <h2 class="wp-block-heading">Dockets</h2>  <h3 class="wp-block-heading"><a href="https://www.oscn.net/dockets/Search.aspx">Court Records Search</a></h3>  <h3 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/simplehelp.asp?helpcontextid=5">Available Court Records</a></h3>  <h3 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/simplehelp.asp?helpcontextid=4">Court Records Help</a></h3>  <hr class="wp-block-separator has-alpha-channel-opacity">  <h3 class="wp-block-heading"><a href="https://efile.oscn.net/" data-type="link" data-id="https://efile.oscn.net/">E-Filing</a></h3>  <h3 class="wp-block-heading"><a href="https://pay.oscn.net/epayments/">E-Payments</a></h3>  <hr class="wp-block-separator has-alpha-channel-opacity"> <p></p><div class="has_sub_panel"><h3 class="reports"><a sub-panel-id="reports-597" aria-expanded="false" aria-haspopup="true" href="/#reports" onclick="event.preventDefault();">Reports</a></h3><div class="sub_panel reports-597" hidden=""><span class="sub_panel_title">Reports</span><h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/report.asp?report=DailyFilings">Daily Filings by County</a></h4> <hr class="wp-block-separator has-alpha-channel-opacity"> <p><strong>Daily Dockets</strong> </p><h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/report.asp?report=WebJudicialDocketJudgeAll">All Events – Specific Judge</a></h4> <h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/report.asp?report=WebJudicialDocketJudgeCaseTypeAll">All Events – Specific Judge – Specific Case Type</a></h4> <h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/report.asp?report=WebJudicialDocketCaseTypeAll">All Events – Specific Case Type</a></h4> <h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/report.asp?report=WebJudicialDocketEventAll">Specific Event</a></h4> <h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/report.asp?report=WebJudicialDocketJudgeEventAll"> Specific Event – Specific Judge</a></h4> <h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/report.asp?report=WebJudicialDocketJudgeCaseTypeEvent"> Specific Event – Specific Judge – Specific Case Type</a></h4> <hr class="wp-block-separator has-alpha-channel-opacity"> <h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/report.asp?report=rptCivilCasesWithTrialDispositionsMAIN">Civil Cases with Trial Dispositions</a></h4> </div></div>   <h3 class="wp-block-heading"><a href="https://www.oscn.net/applications/oscn/report.asp?report=DailyFilings">Daily Filings by County</a></h3> </div></div><button aria-controls="legal-research" data-panel-id="legal-research" class="col-xs-12 col-sm col md col-lg legal-research" aria-expanded="false" aria-haspopup="true"><span>Legal<br>Research</span></button><div class="nav_panel" hidden="" id="legal-research"><div class="panel_container"><h2 class="wp-block-heading"><a href="https://www.oscn.net/applications/oscn/start.asp?viewType=LIBRARY" data-type="link" data-id="https://www.oscn.net/applications/oscn/start.asp?viewType=LIBRARY">Legal Research</a></h2> <p></p><div class="has_sub_panel"><h3 class="case-law"><a sub-panel-id="case-law-344" aria-expanded="false" aria-haspopup="true" href="/#case-law" onclick="event.preventDefault();">Case Law</a></h3><div class="sub_panel case-law-344" hidden=""><span class="sub_panel_title">Case Law</span><div class="wp-block-group"> <div class="wp-block-group__inner-container is-layout-constrained wp-block-group-is-layout-constrained"> <h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/Index.asp?ftdb=STOKCSSC">Supreme Court Decisions</a></h4> <p>1890 to Present </p></div> </div> <div class="wp-block-group"> <div class="wp-block-group__inner-container is-layout-constrained wp-block-group-is-layout-constrained"> <h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/Index.asp?ftdb=STOKCSCR&amp;level=1">Court of Criminal Appeals Decisions</a></h4> <p>1908 to Present </p></div> </div> <div class="wp-block-group"> <div class="wp-block-group__inner-container is-layout-constrained wp-block-group-is-layout-constrained"> <h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/Index.asp?ftdb=STOKCSCV&amp;level=1">Court of Civil Appeals Decisions</a></h4> <p>1968 to Present </p><hr class="wp-block-separator has-alpha-channel-opacity"> <h4 class="wp-block-heading"><a href="https://www.oscn.net/applications/oscn/index.asp?ftdb=STOKAG&amp;level=1">Attorney General’s Opinions</a></h4> <p>1977 to Present </p><h4 class="wp-block-heading"><a href="https://www.oscn.net/applications/oscn/Index.asp?ftdb=STOKCSJU&amp;level=1">Court on the Judiciary</a></h4> <h4 class="wp-block-heading"><a href="https://www.oscn.net/applications/oscn/Index.asp?ftdb=STOKJE&amp;level=1">Judicial Ethics Advisory Panel</a></h4> </div> </div> </div></div> <h3 class="wp-block-heading"><a href="https://www.oscn.net/applications/oscn/index.asp?ftdb=STOKCN&amp;level=1" data-type="URL" data-id="https://www.oscn.net/applications/oscn/index.asp?ftdb=STOKCN&amp;level=1">Constitution</a></h3> <h3 class="wp-block-heading"><a href="https://www.oscn.net/applications/oscn/index.asp?ftdb=STOKRU&amp;level=2">Court Rules</a></h3> <h3 class="wp-block-heading"><a href="https://www.oscn.net/applications/oscn/index.asp?ftdb=STOKLG&amp;level=1">Session Laws</a></h3> <h3 class="wp-block-heading"><a href="https://www.oscn.net/applications/oscn/Index.asp?ftdb=STOKST&amp;level=1">Statutes</a></h3> <h3 class="wp-block-heading"><a href="https://www.oscn.net/applications/oscn/Index.asp?ftdb=STOKSS&amp;level=1">Selected Supreme Court Administrative Directives</a></h3> <h3 class="wp-block-heading"><a href="https://www.oscn.net/applications/oscn/Unpublished.asp">Unpublished Opinions</a></h3> <hr class="wp-block-separator has-alpha-channel-opacity"> <p></p><div class="has_sub_panel"><h3 class="legal-forms"><a sub-panel-id="legal-forms-354" aria-expanded="false" aria-haspopup="true" href="/#legal-forms" onclick="event.preventDefault();">Legal Forms</a></h3><div class="sub_panel legal-forms-354" hidden=""><span class="sub_panel_title">Legal Forms</span><ul class="wp-block-list"> <li><a href="http://www.oscn.net/static/forms/AOCforms.asp">Administrative Office of the Courts</a></li> <li><a href="http://www.oscn.net/images/opinions/2020-OK-22-verification-of-compliance-cares-act.pdf?d=202351514">Cares Verification Form</a></li> <li><a href="http://www.oscn.net/static/forms/aoc_forms/interpreter.asp">Certified Courtroom Interpreters</a></li> <li><a href="http://www.oscn.net/static/forms/aoc_forms/csr.asp">Certified Shorthand Reporters</a></li> <li><a href="http://www.oscn.net/static/forms/childsupport.asp">Child Support</a></li> <li><a href="http://www.okcca.net/forms/index.html">Court of Criminal Appeals</a></li> <li><a href="https://www.oscn.net/forms/district-court-forms/">District Courts of Oklahoma</a></li> <li><a href="http://www.oscn.net/static/forms/districtcover.asp">District Courts of Oklahoma Cover Sheets</a></li> <li><a href="https://www.okbar.org/a2j/guardian">Guardianship Materials for Guardians of Adult, Guardians of Children and Guardian Ad Litem**</a></li> <li><a href="http://www.oscn.net/UniformOrders/default.aspx">Juvenile Courts</a></li> <li><a href="http://oklaw.org/legal-aid-self-help-forms">Legal Aid Self-Help Forms</a>**</li> <li><a href="https://www.sos.ok.gov/">Oklahoma Secretary of State</a></li> <li><a href="http://www.oscn.net/static/forms/scforms.asp">Supreme Court and Court of Civil Appeals</a></li> <li><a href="http://www.owcc.state.ok.us/">Workers’ Compensation</a></li> </ul> </div></div> <p></p><div class="has_sub_panel"><h3 class="reports"><a sub-panel-id="reports-382" aria-expanded="false" aria-haspopup="true" href="/#reports" onclick="event.preventDefault();">Reports</a></h3><div class="sub_panel reports-382" hidden=""><span class="sub_panel_title">Reports</span><h4 class="wp-block-heading"><a href="http://www.oscn.net/static/annual-report-2024.pdf?d=202351514" target="_blank" rel="noreferrer noopener">Annual Report</a></h4> <h4 class="wp-block-heading"><a href="http://www.oscn.net/pages/divorce-report">Divorce Impact Educational Program</a></h4> <h4 class="wp-block-heading"><a href="http://www.oscn.net/dockets/">District Court Reports</a></h4> <h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/DeliverDocument.asp?CiteID=458214">Full Faith and Credit of Tribal Courts</a></h4> <h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/DeliverDocument.asp?CiteID=380115">Registry of Frivolous or Malicious Appeals</a></h4> <h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/DeliverDocument.asp?CiteID=468488">Statewide Registry of Licensed Private Process&nbsp;Servers</a></h4> </div></div> <p></p><div class="has_sub_panel"><h3 class="schedules"><a sub-panel-id="schedules-363" aria-expanded="false" aria-haspopup="true" href="/#schedules" onclick="event.preventDefault();">Schedules</a></h3><div class="sub_panel schedules-363" hidden=""><span class="sub_panel_title">Schedules</span><h4 class="wp-block-heading"><a href="https://www.oscn.net/applications/oscn/index.asp?ftdb=STOKFB&amp;level=1">Fee &amp; Bond Schedule</a></h4> <h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/Index.asp?ftdb=STOKAP&amp;level=1">Fee &amp; Copy Schedules for Appellate Courts</a></h4> <h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/index.asp?ftdb=STOKIN&amp;level=1">Interest on Judgment</a></h4> </div></div> <p></p><div class="has_sub_panel"><h3 class="uniform-jury-instructions"><a sub-panel-id="uniform-jury-instructions-358" aria-expanded="false" aria-haspopup="true" href="/#uniform-jury-instructions" onclick="event.preventDefault();">Uniform Jury Instructions</a></h3><div class="sub_panel uniform-jury-instructions-358" hidden=""><span class="sub_panel_title">Uniform Jury Instructions</span><h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/ocisweb/deliverdocument.asp?citeID=435216">Civil Jury Instructions</a></h4> <h4 class="wp-block-heading offsite"><a href="http://okcca.net/ouji-cr/">Criminal Jury Instructions</a></h4> <h4 class="wp-block-heading"><a href="http://www.oscn.net/applications/oscn/DeliverDocument.asp?CiteID=441802">Juvenile&nbsp;Jury Instructions</a></h4> </div></div> </div></div><button aria-controls="administrative-office-of-the-courts" data-panel-id="administrative-office-of-the-courts" class="col-xs-12 col-sm col md col-lg administrative-office-of-the-courts" aria-expanded="false" aria-haspopup="true"><span>Administrative Office<br>of the Courts</span></button><div class="nav_panel" hidden="" id="administrative-office-of-the-courts"><div class="panel_container"><h2 class="wp-block-heading">Administrative Office of the Courts</h2> <h3 class="wp-block-heading"><a href="/home/administrative-director-of-the-courts/" data-type="page" data-id="2699">AOC Director</a></h3> <hr class="wp-block-separator has-alpha-channel-opacity"> <h3 class="wp-block-heading offsite"><a href="https://adrs.oscn.net/">ADR – Alternative Dispute</a></h3> <h3 class="wp-block-heading offsite"><a href="https://okccip.oscn.net/">CIP – Children’s Court Improvement</a></h3> <h3 class="wp-block-heading">         <a href="http://www.oscn.net/static/forms/aoc_forms/interpreter.asp">Courtroom Interpreters</a></h3> <h3 class="wp-block-heading"><a href="https://www.oscn.net/court-reporters/">CSR – Shorthand Reporters</a></h3> <h3 class="wp-block-heading offsite"><a href="https://www.okjnc.com/">JNC – Judicial Nomination Commission</a></h3> <hr class="wp-block-separator has-alpha-channel-opacity"> <p></p><div class="has_sub_panel"><h3 class="annual-reports"><a sub-panel-id="annual-reports-619" aria-expanded="false" aria-haspopup="true" href="/#annual-reports" onclick="event.preventDefault();">Annual Reports</a></h3><div class="sub_panel annual-reports-619" hidden=""><span class="sub_panel_title">Annual Reports</span><ul class="wp-block-list"> <li><a href="https://www.oscn.net/static/annual-report-2024.pdf">Fiscal Year 2024</a></li> <li><a href="https://www.oscn.net/static/annual-report-2023.pdf">Fiscal Year 2023</a></li> <li><a href="https://www.oscn.net/static/annual-report-2022.pdf">Fiscal Year 2022</a></li> <li><a href="http://www.oscn.net/static/annual-report-2021.pdf">Fiscal Year 2021</a></li> <li><a href="https://www.oscn.net/downloads/annual-report-2020.pdf">Fiscal Year 2020</a></li> <li><a href="https://www.oscn.net/downloads/annual-report-2019.pdf">Fiscal Year 2019</a></li> <li><a href="https://www.oscn.net/downloads/annual-report-2017-2018.pdf">Fiscal Year 2017-2018</a></li> <li><a href="https://www.oscn.net/downloads/annual-report-2016.pdf">Fiscal Year 2016</a></li> <li><a href="https://www.oscn.net/downloads/annual-report-2015.pdf">Fiscal Year 2015</a></li> <li><a href="https://www.oscn.net/downloads/annual-report-2013-2014.pdf">Fiscal Year 2013-2014</a></li> <li><a href="https://www.oscn.net/downloads/annual-report-2012.pdf">Fiscal Year 2012</a></li> <li><a href="https://www.oscn.net/downloads/annual-report-2011.pdf">Fiscal Year 2011</a></li> </ul> </div></div> <h3 class="wp-block-heading"><a href="/jobs/" data-type="page" data-id="687">Careers</a></h3> <h3 class="wp-block-heading"><a href="https://oklahoma.gov/cojc.html">Judicial Complaints</a></h3> <hr class="wp-block-separator has-alpha-channel-opacity"> <h4 class="wp-block-heading"></h4> </div></div>				
+					</div>
+					<ul style="display: none;"></ul>
+					<div class="navigation_background_overlay"></div>
+				</nav><!-- #site-navigation -->
+			</div>
+			<a id="skip-navigation"></a>
+			<div id="site-alert" aria-live="polite" data-alerts-initialized="true"><div class="content-width">
+	<div class="alert-stack">
+		<section class="alert-notice alert-notice--dismissible" data-alert-key="newsitem-3853">
+			<div class="alert-notice__content">
+				<strong>Scam Alert - Pay Tolls Text Messages</strong> - Please be aware there are text messages circulating regarding Toll violations with a fraudulent payment link. Toll fees in Oklahoma are distributed by mail or to a registered Pikepass account. The Supreme Court does not handle cases involving Toll violations or collect fees and penalties. To verify the text messages are legitimate, check with the Oklahoma Turnpike Authority by calling 1-800-745-3727. Do not click links or use phone numbers listed in the scam text messages.
+			</div>
+			<button type="button" class="alert-dismiss" data-alert-dismiss="newsitem-3853" aria-label="Dismiss alert: Scam Alert - Pay Tolls Text Messages">Dismiss</button>
+		</section>
+	</div>
+</div></div>
+	</header>
+	<script id="template-alerts" type="x-tmpl-mustache">
+		<div class='content-width'>
+		{{#.}}
+			<div class='alert-notice'>
+				{{numbering}}&nbsp;<strong>{{title}}</strong> - {{content}}</div>
+		{{/.}}
+		</div>
+	</script>
+	<!-- #masthead -->		
+	
+<div id="oscn-content"><div class="sized">
+  <style>
+        td, th { padding: 2px 5px; }
+        h2.styletop {
+			text-align: left;
+			background: #033c60;
+			color: white;
+			margin: 0;
+			padding: 6px;
+			font-size: 18px;
+			text-transform: uppercase;
+			font-weight: bold;
+        }
+        span.styletop { 
+			display: block; 
+			text-align: center; 
+			line-height: 1.5rem;
+			padding: 0.5rem 0;
+		}
+
+        .section {
+        text-transform: uppercase;
+        color: #033c60;
+        padding: 2px 5px;
+        background-color: #f7f7f7;
+        border-top: 1px #e1e1e1 solid;
+        border-bottom: 1px #e1e1e1 solid;
+        font-size: 22px;
+        text-align: left;
+        }
+
+        .partyCounts thead th { text-decoration: underline; }
+        .paddedContainer { width: 75px; }
+        .partyName, .dispositionInformation, .CountDescription { padding: 2px 5px; }
+        .CountNumber { width: 75px; }
+        .CountNumber, .partyName, .dispositionInformation, .CountDescription { vertical-align: top; }
+
+        p { margin: 0; padding: 0; }
+        table th { text-align: left; }
+        table { margin-bottom: 10px; width: 100%; border-collapse: collapse; }
+
+        .caseStyle {  }
+        .caseStyle td { border: 1px solid #e1e1e1; padding: 5px 10px; }
+
+        .docketRow td { padding: 3px 2px 3px 2px; border-top: thin solid #e1e1e1; border-bottom: thin solid #e1e1e1;}
+
+        .evenRow { background-color: #f7f7f7;}
+        .oddRow { background-color: white; }
+
+        .multipleRecords {
+        width: 100%;
+        position: relative;
+        margin-top: 2em;
+        margin-bottom: 2em;
+        }
+        .multipleRecords caption {
+        text-align: left;
+        font-weight: bold;
+        position: relative;
+        background: #033c60;
+        color: white;
+        margin: 0;
+        padding: 6px;
+        font-size: 18px;
+        text-transform: uppercase;
+        position: relative;
+        }
+        .foundRecords {
+        position: absolute;
+        right: 5px; font-size: 14px;
+        }
+        .multipleRecords thead th {
+        font-size: 13px;
+        text-align: left;
+        padding: 4px 3px;
+        vertical-align: top;
+        background-color: #f7f7f7;
+        }
+        .tablerow { border-top: thin solid #e1e1e1; }
+        .tablerow td { font-size: 11px; padding: 4px 3px; color: #033c60; vertical-align: top;}
+
+        
+        #rev, .revLabel { display: inline; margin: 0; }
+
+        .heading3 {
+        text-transform: uppercase;
+        color: #033c60;
+        padding: 2px 5px;
+        background-color: #f7f7f7;
+        border-top: 1px #e1e1e1 solid;
+        border-bottom: 1px #e1e1e1 solid;
+        font-size: 22px;
+        text-align: center;
+        margin-top: 2em;
+        }
+
+        table { margin: 0 auto 0 auto; }
+        .casetype { width: 50%; }
+        .casetype caption {
+        text-align: center;
+        color: #033c60;
+        margin: 0;
+        padding: 10px 5px;
+        font-size: 18px;
+        text-transform: uppercase;
+        font-weight: bold;
+        }
+        .casetype th {
+        font-size: 13px;
+        text-align: left;
+        padding: 4px 3px;
+        vertical-align: top;
+        background-color: #f7f7f7;
+        border-top: 1px #e1e1e1 solid;
+        border-bottom: 1px #e1e1e1 solid;
+        }
+        .casetype tr {
+        border-top: 1px #e1e1e1 solid;
+        border-bottom: 1px #e1e1e1 solid;
+        }
+        .casetype td { padding: 3px 4px; }
+        .casenoformat { width: 350px; }
+        .casenoformat tbody tr td { text-align: center; }
+        table caption { }
+        .casetype { min-width: 250px; }
+        form label { font: bold 11pt arial; }
+        .padding { height: 2em; }
+      </style>
+  <style>
+		td, th {
+			padding: 2px 5px;
+		}
+		h2.styletop {
+			text-align: left;
+			background: #033c60;
+			color: white;
+			margin: 0;
+			padding: 6px;
+			font-size: 18px;
+			text-transform: uppercase;
+			font-weight: bold;	
+		}
+		span.styletop { display: block; text-align: center; }
+
+		.section { 
+			text-transform: uppercase; 
+			color: #033c60;  
+			padding: 2px 5px;
+			background-color: #f7f7f7;
+			border-top: 1px #e1e1e1 solid;
+			border-bottom: 1px #e1e1e1 solid;
+			font-size: 22px;
+			text-align: left;
+			position: relative;
+		}
+		.section button.btn.btn-primary {
+			position: absolute;
+			right: 1rem;
+			top: 50%;
+			transform: translateY(-50%);
+		}
+		#text-alert-message {
+			font-size: small;
+		}		
+		.partyCounts thead th {
+			text-decoration: underline;
+		}
+		.paddedContainer {
+			width: 75px;
+		}
+		.partyName, .dispositionInformation, .CountDescription {
+			padding: 2px 5px;
+		}
+		.CountNumber {
+			width: 75px;
+		}
+		
+		.CountNumber, .partyName, .dispositionInformation, .CountDescription {
+			vertical-align: top;
+		}
+		
+		p { margin: 0; padding: 0; }
+		table th { text-align: left; }
+		table { margin-bottom: 10px; width: 100%; border-collapse: collapse; }
+
+		.caseStyle {  }
+		.caseStyle td { border: 1px solid #e1e1e1; padding: 5px 10px; }
+
+		.docketRow td { padding: 3px 2px 3px 2px; border-top: thin solid #e1e1e1; border-bottom: thin solid #e1e1e1;}
+
+		.evenRow { background-color: #f7f7f7;}
+		.oddRow { background-color: white; }	
+    </style>
+  <div class="notice-container">
+    <p class="notice">The information on this page is NOT an official 
+            record. Do not rely on the correctness or completeness of this 
+            information. Verify all information with the <a href="
+    /courts/tulsa">official record 
+            keeper</a>. The information contained in this report is provided in 
+            compliance with the Oklahoma Open Records Act, 
+            <a href="http://www.oscn.net/applications/oscn/deliverdocument.asp?citeid=80288">51 O.S. 24A.1</a>. 
+            Use of this information is governed by this act, as well as other 
+            applicable state and federal laws.
+          </p>
+    <div class="track-case"></div>
+  </div>
+  <h2 class="styletop"><span class="styletop">In the District Court in and for <a style="color: white; text-decoration: underline;" href="
+    /courts/tulsa">tulsa&nbsp;County</a>, Oklahoma</span></h2>
+  <table class="caseStyle" cellspacing="0" cellpadding="0" border="0" width="100%" id="TABLE_1">
+    <tbody><tr>
+      <td valign="center" width="50%">AUTO FINANCE USA LLC,<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Plaintiff,<br>
+v.<br>
+JAMARIO DAMONT RICHARDSON,<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Defendant, and<br>
+BENJAMINE A RICHARDSON,<br>
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Defendant.</td>
+      <td width="50%"><strong>
+              No. CJ-2024-1<br>
+              (Civil relief more than $10,000: INDEBTEDNESS)
+            </strong><br><br>
+            Filed: 01/02/2024<br>Closed: 10/24/2024<br><br>Judge: Civil Docket A<br></td>
+    </tr>
+  </tbody></table><script>
+		let counties = new Map([
+			["ADAIR","AD"],["ALFALFA","AL"],["APPELLATE","AP"],["ATOKA","AT"],["BEAVER","BV"],["BECKHAM","BK"],["BLAINE","BL"],["BRYAN","BR"],["CADDO","CA"],["CANADIAN","CD"],["CARTER","CR"],["CHEROKEE","CH"],["CHOCTAW","CT"],["CIMARRON","CI"],["CLEVELAND","CL"],["COAL","CO"],["COMANCHE","CM"],["COTTON","CN"],["CRAIG","CG"],["CREEK","CK"],["CUSTER","CU"],["DELAWARE","DW"],["DEWEY","DE"],["ELLIS","EL"],["GARFIELD","GA"],["GARVIN","GV"],["GRADY","GD"],["GRANT","GN"],["GREER","GR"],["HARMON","HM"],["HARPER","HP"],["HASKELL","HS"],["HUGHES","HU"],["JACKSON","JK"],["JEFFERSON","JF"],["JOHNSTON","JS"],["KAY","KA"],["KINGFISHER","KF"],["KIOWA","KI"],["LATIMER","LA"],["LEFLORE","LE"],["LINCOLN","LI"],["LOGAN","LO"],["LOVE","LV"],["MCCLAIN","ML"],["MCCURTAIN","MC"],["MCINTOSH","MT"],["MAJOR","MJ"],["MARSHALL","MS"],["MAYES","MY"],["MURRAY","MR"],["MUSKOGEE","MG"],["NOBLE","NB"],["NOWATA","NW"],["OKFUSKEE","OF"],["OKLAHOMA","OK"],["OKMULGEE","OM"],["OSAGE","OS"],["OTTAWA","OT"],["PAWNEE","PA"],["PAYNE","PY"],["PITTSBURG","PB"],["PONTOTOC","PT"],["POTTAWATOMIE","PW"],["PUSHMATAHA","PU"],["ROGER MILLS","RM"],["ROGERS","RG"],["SEMINOLE","SM"],["SEQUOYAH","SQ"],["STEPHENS","SP"],["TEXAS","TX"],["TILLMAN","TM"],["TULSA","TU"],["WAGONER","WG"],["WASHINGTON","WS"],["WASHITA","WH"],["WOODS","WD"],["WOODWARD","WW"]
+		]);	
+		var casenumber = "CJ-2024-1"
+		var court = "TULSA".toUpperCase();
+		var smscasenumber = counties.get(court)+casenumber.replaceAll('-','');
+	</script><script id="json_style" type="application/json">
+	{
+		"casenumber": "CJ-2024-1",
+		"style": "AUTO FINANCE USA LLC v. RICHARDSON, JAMARIO DAMONT",
+		"cmid": "3656437",
+		"cms": "ocis",
+		"court": "TULSA"
+	}
+	</script><h2 class="section party">Parties</h2>
+  <p><span class="parties_party"><span class="parties_partyname">AUTO FINANCE USA LLC</span>,
+				
+<span class="parties_type">Plaintiff</span></span><br><span class="parties_party"><span class="parties_partyname">RICHARDSON,&nbsp; BENJAMINE&nbsp; A</span>,
+				
+<span class="parties_type">Defendant</span></span><br><span class="parties_party"><span class="parties_partyname">RICHARDSON,&nbsp; JAMARIO&nbsp; DAMONT</span>,
+				
+<span class="parties_type">Defendant</span></span><br> &nbsp;
+          </p>
+  <h2 class="section attorneys">Attorneys</h2>
+  <table width="100%" id="TABLE_2">
+    <thead>
+      <tr>
+        <th align="left">Attorney</th>
+        <th align="left">Represented Parties</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td valign="top" width="50%">ROBINSON, HOOVER &amp; FUDGE, PLLC&nbsp;(Bar #30194)<br>ROBINSON HOOVER &amp; FUDGE PLLC<br>P.O. BOX 1748<br>OKLAHOMA CITY, OK&nbsp;73101<br>&nbsp;
+                        </td>
+        <td valign="top" width="50%">AUTO FINANCE USA LLC, <br></td>
+      </tr>
+    </tbody>
+  </table>
+  <h2 class="section events">Events
+			<div class="text-alerts-active" style=""><button type="button" class="btn btn-primary" data-toggle="modal" data-target="#text-alert-message" style="">
+				  Get Text Reminders 
+				</button><script src="//cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script><div class="modal fade" id="text-alert-message" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true" style="display: none;">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="exampleModalLongTitle">Text Reminders</h5><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">X</span></button></div>
+            <style>
+						#text-qrcode img {
+							margin: auto;
+						}
+					  </style>
+            <div class="modal-body">
+              <p style="text-align: center;">Message and data rates may apply, depending on your mobile plan.</p>
+              <p style="text-align: center;"><a href="https://www.oscn.net/misc/service-disclaimer">Instructions and Disclaimer</a></p><br><a class="text-casenumber" href="sms:+18778490889?body=SUBSCRIBE TUCJ20241"><div id="text-qrcode" title="sms:+18778490889?body=SUBSCRIBE TUCJ20241"><canvas width="160" height="160" style="display: none;"></canvas><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAACgCAYAAACLz2ctAAAMNElEQVR4Aeyci3bbOAxEc/v//9wN4npDDGGTYiT5kdlTrjR4DKAxjo2mbv98fHz8fcT5O/hvpielqHI0ZgZXPK1tD46Wb8u91t6Se43dg+PK9dNrDOAnh39Zgcco4AF8jO6u+k8BD+A/IXx5jALdAH7uBx97n5lHAz7g+1Q9KA98xwPq/sJA4v0yNv+D7AeGzw99TkNZ3lbPozZNVH9gyLVnciKvPZpT4TZ+r/uqTjeAVZBtVuAoBX7vAB6lqHk3KeAB3CSXg/dWYDiAkHcOGOOVJnXPWOGocpQXcv/qD1zxtLaI0dP6q3vIdYEubIZzJkaJgbt7sMZXGDIHjHHFo7bhAGqCsRXYUwEP4J5qmmuzAh7AzZI5YU8FXmoAz9p/4P5+M/MCnNWr9gJ979KLpjwUv9QAPlQpFz9EAQ/gIbKadFYBD+CsUo47RAEP4CGymnRWgbcfQF3AFUO/tKt4mqP+CkPmVY7AkGMqHrXB9hzleCb89gP4TGK7l16BUwewL2/Lb1fAA/jbJ+DBzz8cwNhVtp6VZ4K828AYa52qT8g8mlNh5alintWmvQfeo9fg2Xpm6g4HcIbEMVZgVQEP4KpyzttFAQ/gLjKaZFWBbgAh70zwc7zSXLVvKI/GQN/rKEb9gSHzaF3IfkBDBM/BqN0eIH2RFPq/MDXDDJlnJQcyB2zHVd1uAKsg26zAUQp4AI9S1rxTCngAp2Ry0FEKeACPUta8Uwr8aZfeM+9H3UG/5I5yKj9kHn3GKmcP21l1tFfIzwtoSIe11zOx3wG7l8OGPRUYcXkARwrZf6gCHsBD5TX5SIFdBhDofmAK22wze8foYSq/8sK4L81RXvUH1hjIddS/imF/Xsic0OOVfiHzVBy7DGBFbJsVmFHAAzijkmMOU8ADeJi0Jp5R4A/c/5yG7Icexw7UHi3c+q73GgOZV/0z+Mr9df379+tfOoXM2/rivuKFnAMZz+QEd3sgcwAVTbK1+df7FDAJrrnXK5B29qu9vSo15BzoseYohj7H74CqkvGpCngAT5XbxVQBD6AqYnyqAh7AU+V2MVWg+zIC5EWxXUxv3cP9HMh+QPv4+g1Dyw+kRRn6bwNDHwPZ1nLGPWR/18inIeLa82lKvyBzAMlfgZbvel/FHWEDkpZaA7Ifeq015/oM7RUyT+u7de93QFX29fFLPYEH8KVervdr1gP4fq/pSz1R94No/axeeRoY7wLKC+McuB+jnIEh54RtdCDnzGgyioHMCeM9q+pzVGevHOVZqascFfY7YKWKbacp4AE8TWoXqhTwAFaq2HaaAt0AQr+rwH3btdtbV+jzb8X+xK57yirWHiD3r/4KQ86peqnyWhtkDqB1l/czdTSmJBIjcPdniRGuvDDO6QYwiHyswFkKeADPUtp1SgU8gKUsNp6lgAfwLKVdp1Sg+zKCLpJH4bKbgVF7gfGSO6As3VpHg9QfWGNmMPy8/6jdnqou3K/T5l/vK54jbH4H3EVVk6wq4AFcVc55uyjgAdxFRpOsKrDLAELeMWCMr7vGrevMA2kujOvO8GrMHnWg703rQI7RuoEhx8AYj+pAz6E5R+FdBvCo5sz7/gp4AN//NX7qJ/QAPvXL8/zN/bTD7gupkPeBnxaI/Nhd9IT93oHcB3Av/KZP6wLDP1RXMsg5yhlYc47CUas9Wqf1Xe81RvE1rr2OYtQfGLJOYRsdvwOOFLL/UAU8gIfKa/KRAh7AkUL2H6qAB/BQeU0+UmA4gDBeLNvlNe61KGQO6LHmBI8eyHkrOSNOyDUALZN+EwN8YQ3SOjNYOeDCDd9XjVFe9QfWGMXwzQ+X+8jb+8CFG76vwwHcu4nd+Ez0Fgp4AN/iZXzdh/AAvu5r9xadb/5CavXU8P2ZDnQhunME1iDga5eCy1X9gSOvPXCJhcs1YkYHLrFwubZ81/sRx4wfLvxw+6o81/r3rnCbD9Z8VT24z6W9z+Cqjt8BZ5RzzGEKeAAPk9bEMwp4AGdUeq6Yt+pm+GUEuL8LQP+vPOlnPfQcGqMY+hzItpVXQutUHKMY9a9irQ3bn09rK2fgmZiIa4/mKG5jb93P5Pgd8JZ6tp+igAfwFJld5JYCHsBbyth+igIewFNkdpFbCnQDqIvjDL5FfrVXHHB/4a5yrny3rpA5of8NkuZCn6MxKxgyb8UBOUafucoZxag/sPKErT2Q+wA0Jf0hAVDiLmnC0A3gvRz7rMDeCngA91bUfJsU8ABuksvBeyvQDSDUn+9wsVcNwMUH81flgZyr/gq3e8yt+yqvtVV5rb+6h9wr9LjK28MGuZZyQvbDGCtHhVWnKmbF1g3gColzrMCqAh7AVeWct4sCHsApGR10lALdF1K1kH72Q79TaMyII+I1ZgZHXns0B/reNEYxbM9pe5i917qrWOtB7r/i1RzFVQ5kXshYOSoMOQd67HfASn3bTlPAA3ia1C5UKeABrFSx7TQFPICnSe1ClQLDAYS8OFbLZkXc2iBzwNqXBCDztDVm7yFzrDzPTC3IdaDHWhtyTFUHxjFVXmuDzKF9BL7G/+QaPKMzHMCfNOBcKzBSwAM4Usj+QxXwAB4qr8lHCnR/K04T9DMc8v4AaMqH5lQYSF9qVJIqR2PgPkfEQ45RXsh+6PFMTtRqj+ZUuI2Pe40J2+jM5EB+phFn+JVXccTogVwHMtb4wH4HDBV8HqaAB/Bh0rtwKPC8Axjd+by9At0AznzWqypw/7Mesh/GPwfUGoG1N8URo0djIPei/sDKATlH/YEhx0DGEaMH7sdA9gNK0eHoX48GqR9I+zigKR0Guhzl1SToc7oB1CRjK3CkAh7AI9U191ABD+BQIgccqYAH8Eh1zT1UYDiAkBdHXTQrrFWrGLjPC9kPY6x1A0PO014g+4FIu3uUo8JKAHRLu8b8w/9fVnkh11IeuO+PeMgxkHHE6Pm/8Rs3Gh94OIA3uGy2Arso4AHcRUaTrCrgAVxVznm7KLDL34obdQJ5fwC6FCDtSF1AYYgdYuspaDrTiLNL+DTA9v4/0075Bfd7g+yHtT8oWHkYvwOuqOac3RTwAO4mpYlWFEgDuELgHCvwEwWGAwh5P6j2I20Atucor3IGnomJuPZA7qX1xb1yBoacA2McefdO1NKj8eqHvu4oR/2BlTds7VH/Kobcb1sj7ive4QBWSbZZgb0U8ADupaR5lhTwAC7J5qS9FPAA7qWkeZYU6P5WHGxfJCHnaCeQ/YCGdDiWVj3Aj39YDZkDAuejdbvmCgNkDsi4SOlMkHO0j8Bd0oIBcp2KAsYxmhf9tUf9FfY7YKWKbacp4AE8TWoXqhTwAFaq2HaaAt2XEdrP8Lif6STifnpg+84B23P0eaq+IfNqjHIEHsWoPzBsrwP3cyD7gWgvnai99SSCTwCkfRzG+DOt++V3wE4SG85UwAN4ptpPWOvRLXkAH/0K/PL6w58DwvizHbbHrOiue4tyQN+HxiiGPmdUR/2BlVcx9HVGMeoPHLXaA5k3YrYeyBzAkKLt4Xo/TCoC/A5YiGLTeQp4AM/T2pUKBTyAhSg2naeAB/A8rV2pUKAbwOtCuee1qPvxsWAE0g8/Fyh2SYHcB/R4Rb+V5mbqjHgrjlHOXv5uAPciNo8VmFHAAzijkmMOU8ADeJi0Jp5RYDiA0O83cN82U/iImJldpopRm/YG+XnVP4MhcwBd2qiPLmHRAKRdGsZYS0GfozEzzzMcQCU1tgJ7KuAB3FPNOS5HNQp4ABsxfHu+Ak8zgLovQL9jaIxi6HMg21RiyH5AQzqsdSsMpD2riumIxQCZA3osKakmXOI1RntR/wxWjgrP8DzNAM4065j3U8AD+H6v6Us9kQfwpV6u92vWA/h+r+nzPlHR2dMO4MpSW+WoTTVQf2C4LO9wuYatPXCxw+2r1oHbsVD7lCNw20fcQ86NmCNO1GoP5LowxlVfTzuAVbO2vZ8CHsD3e01f6ok8gC/1cr1fs8MBbD/3Z+8fJRP0e8gevUDmrXTQOlWM2jRHscYH1hjFETM6kJ9HOc7EwwE8sxnX+n0K/JIB/H0v7Ks8sQfwVV6pN+2zG0DI+wH8HB+lHeTeqt0HcgyM8VH9Km/Vb2uDvlflOAq3fcQ95F5W6kLmAD66Afzwf1bgRAU8gCeK7VK9Ah7AXhNbTlTAA3ii2I8o9ew1/wMAAP//1sjxgwAAAAZJREFUAwDQr4/pJ98W8gAAAABJRU5ErkJggg==" style="display: block;"></div></a><br><script>
+						var protocol = "sms"
+						
+						var url = "https://www.oscn.net/datafiles/text-messaging/redirect/";
+						var ph_num = "18778490889";
+						var text_message = `SUBSCRIBE ${smscasenumber}`;
+						//var redirect_url = `${url}?to=%2B${ph_num}&body=${text_message}`;
+						var redirect_url = `sms:+${ph_num}?body=${text_message}`;
+						
+						var qrcode = new QRCode("text-qrcode", {
+							text: redirect_url,
+							width: 160,
+							height: 160,
+							colorDark : "#000000",
+							colorLight : "#ffffff",
+							correctLevel : QRCode.CorrectLevel.H
+						});			
+						</script><p style="text-align: center;"><script>
+								var text = `Text <a class="text-casenumber" href=""><b>SUBSCRIBE ${smscasenumber}</b></a> to <b>1-877-849-0889</b>`;
+								document.write(text);
+								
+								document.querySelectorAll('.text-casenumber').forEach(function(item){
+									item.href = redirect_url;
+								})
+							</script>Text <a class="text-casenumber" href="sms:+18778490889?body=SUBSCRIBE TUCJ20241"><b>SUBSCRIBE TUCJ20241</b></a> to <b>1-877-849-0889</b></p>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </h2><script>
+			console.log(court);
+			
+			const activateAt = new Date('2025-11-10T06:00:00-06:00');
+			const now = new Date();
+			
+			var counties_active = []
+			var counties_temp = []
+				counties_active.push(
+					"CANADIAN"
+					,"PAYNE"
+					,"LOGAN"
+				);			
+				counties_active.push( //ADDED 11/10/2025 6:00AM
+					"HARMON"
+					,"GREER"
+					,"KIOWA"
+					,"TILLMAN"
+					,"JACKSON"
+					,"WASHINGTON"
+					,"NOWATA"
+					,"MCINTOSH"
+					,"PITTSBURG"
+				);
+				counties_active.push( //ADDED 11/10/2025 9:00AM
+					"ELLIS"
+					,"ROGER MILLS"
+					,"PUSHMATAHA"
+				);
+
+			if (now >= new Date('2025-11-17T06:00:00-06:00')) {
+				counties_active.push( //ADDED 11/17/2025 6:00AM
+					"ADAIR"
+					,"CLEVELAND"					
+					,"GARFIELD"
+					,"CIMARRON"
+					,"TEXAS"
+					,"BEAVER"
+					,"HARPER"
+					,"CUSTER"
+					,"COMANCHE"
+					,"COTTON"
+					,"STEPHENS"
+					,"JEFFERSON"
+					,"OSAGE"
+					,"COAL"
+					,"ATOKA"
+				);
+			}
+			if (now >= new Date('2025-11-24T06:00:00-06:00')) {
+				counties_active.push( //ADDED 11/24/2025 6:00AM
+					"TULSA"
+					,"BECKHAM"
+					,"WASHITA"
+					,"WOODS"
+					,"ALFALFA"
+					,"GRANT"
+					,"WOODWARD"
+					,"MAJOR"
+					,"KINGFISHER"
+					,"BLAINE"
+					,"DEWEY"
+					,"LINCOLN"
+					,"POTTAWATOMIE"
+					,"CRAIG"
+					,"ROGERS"
+					,"MAYES"
+				);
+			}
+			if (now >= new Date('2025-12-01T06:00:00-06:00')) {
+				counties_active.push( //ADDED 12/01/2025 6:00AM
+					"OKLAHOMA"
+					,"MURRAY"
+					,"CARTER"
+					,"JOHNSTON"
+					,"LOVE"
+					,"MARSHALL"
+					,"MCCLAIN"
+					,"GARVIN"
+					,"BRYAN"
+					,"WAGONER"
+					,"CHEROKEE"
+					,"MUSKOGEE"
+					,"SEQUOYAH"
+					,"PAWNEE"
+					,"CADDO"
+					,"GRADY"
+				);
+			}
+			if (now >= new Date('2025-12-08T06:00:00-06:00')) {
+				counties_active.push( //ADDED 12/08/2025 6:00AM
+					"KAY"
+					,"NOBLE"
+					,"SEMINOLE"
+					,"PONTOTOC"
+					,"HUGHES"
+					,"HASKELL"
+					,"LATIMER"
+					,"LEFLORE"
+					,"OTTAWA"
+					,"DELAWARE"
+					,"CREEK"
+					,"OKFUSKEE"
+					,"OKMULGEE"
+					,"MCCURTAIN"
+					,"CHOCTAW"
+				);
+			}			
+			if(counties_active.indexOf(court) > -1){
+				document.querySelectorAll('.text-alerts-active')[0].style.display = '';
+			}
+
+			</script><script id="json_events" type="application/json">
+		{
+		"events": [
+		
+				{ 
+					"date": "Tuesday, February 27, 2024 at 10:00 AM",
+					"description":
+					  
+						  "HEARING TO APPEAR AND DISCLOSE LOCATION OF PROPERTY - PF - HUGH FUDGE && DANI SCHINZING - DEF - PRO SE"
+						
+				}
+		]}
+	</script><table class="events_table" width="100%" id="TABLE_3">
+    <thead>
+      <tr>
+        <th>Event</th>
+        <th>Party</th>
+        <th>Docket</th>
+        <th>Reporter</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="event_description">
+          <font color="green">Tuesday, February 27, 2024 at 10:00 AM</font><br><span class="nbsps">&nbsp;&nbsp;&nbsp;</span>HEARING TO APPEAR AND DISCLOSE LOCATION OF PROPERTY - PF - HUGH FUDGE &amp;&amp; DANI SCHINZING - DEF - PRO SE<!--
+                          (HEA)
+                        --></td>
+        <td class="event_partyname empty">
+        </td>
+        <td class="event_judge"> Civil Docket A</td>
+        <td class="event_reporter empty">
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <h2 class="section issues">Issues</h2>
+  <p>
+    <font size="1">For cases filed before 1/1/2000, ancillary issues may not appear except in the docket.</font><br>&nbsp;</p>
+  <table id="TABLE_4">
+    <tbody><tr>
+      <td valign="top" width="100px"><strong>Issue # 1.</strong></td>
+      <td>
+                          Issue: INDEBTEDNESS
+                            (INDEBT)
+                          <br>Filed By: AUTO FINANCE USA LLC<br>Filed Date: 01/02/2024<br></td>
+    </tr>
+  </tbody></table>
+  <table class="Disposition" id="TABLE_5">
+    <thead>
+      <tr>
+        <th class="paddedContainer"></th>
+        <th class="partyName">Party Name</th>
+        <th class="dispositionInformation">Disposition Information</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td width="100px"></td>
+        <td class="countpartyname" width="20%" valign="top"><strong><u>Defendant:</u></strong>&nbsp;
+                <nobr>RICHARDSON, BENJAMINE A</nobr></td>
+        <td class="countdisposition" valign="top">
+          <font color="red"><strong>
+                        Disposed:  DEFAULT JUDGEMENT,
+                        10/24/2024.
+                        Judge</strong></font>
+        </td>
+      </tr>
+      <tr>
+        <td width="100px"></td>
+        <td class="countpartyname" width="20%" valign="top"><strong><u>Defendant:</u></strong>&nbsp;
+                <nobr>RICHARDSON, JAMARIO DAMONT</nobr></td>
+        <td class="countdisposition" valign="top">
+          <font color="red"><strong>
+                        Disposed:  DEFAULT JUDGEMENT,
+                        10/24/2024.
+                        Judge</strong></font>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <table id="TABLE_6">
+    <tbody><tr>
+      <td valign="top" width="100px"><strong>Issue # 2.</strong></td>
+      <td>
+                          Issue: REPLEVIN
+                            (REPLE)
+                          <br>Filed By: AUTO FINANCE USA LLC<br>Filed Date: 01/02/2024<br></td>
+    </tr>
+  </tbody></table>
+  <table class="Disposition" id="TABLE_7">
+    <thead>
+      <tr>
+        <th class="paddedContainer"></th>
+        <th class="partyName">Party Name</th>
+        <th class="dispositionInformation">Disposition Information</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td width="100px"></td>
+        <td class="countpartyname" width="20%" valign="top"><strong><u>Defendant:</u></strong>&nbsp;
+                <nobr>RICHARDSON, BENJAMINE A</nobr></td>
+        <td class="countdisposition" valign="top">
+          <font color="red"><strong>
+                        Disposed:  DEFAULT JUDGEMENT,
+                        10/24/2024.
+                        Judge</strong></font>
+        </td>
+      </tr>
+      <tr>
+        <td width="100px"></td>
+        <td class="countpartyname" width="20%" valign="top"><strong><u>Defendant:</u></strong>&nbsp;
+                <nobr>RICHARDSON, JAMARIO DAMONT</nobr></td>
+        <td class="countdisposition" valign="top">
+          <font color="red"><strong>
+                        Disposed:  DEFAULT JUDGEMENT,
+                        10/24/2024.
+                        Judge</strong></font>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <h2 class="section dockets">Docket</h2>
+  <table class="docketlist ocis" cellpadding="2" cellspacing="2" border="0" id="TABLE_8">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Code</th>
+        <th>Description</th>
+        <th>Count</th>
+        <th>Party</th>
+        <th>Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="black"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="black"><nobr>TEXT</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="black">CIVIL RELIEF MORE THAN $10,000 INITIAL FILING.</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"><span class="count_issue">1&nbsp;&nbsp;</span></td>
+        <td valign="top"></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="000000"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="000000"><nobr>INDEBT</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="000000">INDEBTEDNESS</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="GREEN"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="GREEN"><nobr>DMFE</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="GREEN">DISPUTE MEDIATION FEE</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 7.00</font>
+        </td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="GREEN"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="GREEN"><nobr>PFE1</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="GREEN">PETITION</font>
+            </p>
+            <p><span style="text-decoration: italic;">
+									Document Available (#1057134173)
+									<nobr><a class="doc-tif" href="GetDocument.aspx?ct=tulsa&amp;cn=CJ-2024-1&amp;bc=1057134173&amp;fmt=tif" target="_blank" title="Download document in TIFF format.">TIFF</a></nobr>
+									&nbsp;&nbsp;
+									<nobr><a class="doc-pdf" href="GetDocument.aspx?ct=tulsa&amp;bc=1057134173&amp;cn=CJ-2024-1&amp;fmt=pdf" target="_blank" title="Download document in PDF format.">PDF</a></nobr></span></p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 163.00</font>
+        </td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="GREEN"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="GREEN"><nobr>PFE7</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="GREEN">LAW LIBRARY FEE</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 6.00</font>
+        </td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="GREEN"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="GREEN"><nobr>OCISR</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="GREEN">OKLAHOMA COURT INFORMATION SYSTEM REVOLVING FUND</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 25.00</font>
+        </td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="green"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="green"><nobr>OCJC</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="green">OKLAHOMA COUNCIL ON JUDICIAL COMPLAINTS REVOLVING FUND</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 1.55</font>
+        </td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="green"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="green"><nobr>OCASA</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="green">OKLAHOMA COURT APPOINTED SPECIAL ADVOCATES</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 5.00</font>
+        </td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="green"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="green"><nobr>SSFCHSCPC</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="green">SHERIFF'S SERVICE FEE FOR COURTHOUSE SECURITY PER BOARD OF COUNTY COMMISSIONER</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 10.00</font>
+        </td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="green"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="green"><nobr>CCADMINCSF</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="green">COURT CLERK ADMINISTRATIVE FEE ON COURTHOUSE SECURITY PER BOARD OF COUNTY COMMISSIONER</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 1.00</font>
+        </td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="green"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="green"><nobr>CCADMIN0155</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="green">COURT CLERK ADMINISTRATIVE FEE ON $1.55 COLLECTION</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 0.16</font>
+        </td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="green"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="green"><nobr>SJFIS</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="green">STATE JUDICIAL REVOLVING FUND - INTERPRETER AND TRANSLATOR SERVICES</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 0.45</font>
+        </td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="green"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="green"><nobr>DCADMIN155</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="green">DISTRICT COURT ADMINISTRATIVE FEE ON $1.55 COLLECTIONS</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 0.23</font>
+        </td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="green"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="green"><nobr>DCADMIN05</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="green">DISTRICT COURT ADMINISTRATIVE FEE ON $5 COLLECTIONS</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 0.75</font>
+        </td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="green"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="green"><nobr>DCADMINCSF</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="green">DISTRICT COURT ADMINISTRATIVE FEE ON COURTHOUSE SECURITY PER BOARD OF COUNTY COMMISSIONER</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 1.50</font>
+        </td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="GREEN"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="GREEN"><nobr>CCRMPF</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="GREEN">COURT CLERK'S RECORDS MANAGEMENT AND PRESERVATION FEE</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 10.00</font>
+        </td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="GREEN"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="GREEN"><nobr>CCADMIN04</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="GREEN">COURT CLERK ADMINISTRATIVE FEE ON COLLECTIONS</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 0.50</font>
+        </td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="GREEN"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="GREEN"><nobr>LTF</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="GREEN">LENGTHY TRIAL FUND</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 10.00</font>
+        </td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="GREEN"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="GREEN"><nobr>SMF</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="GREEN">SUMMONS FEE (CLERKS FEE)-2</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 20.00</font>
+        </td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="BLACK"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="BLACK"><nobr>APLI</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="BLACK">APPLICATION FOR ORDER RESTRAINING DISPOSITION OF PROOPERTY AND COMPELLING DEFENDANTS TO APPEAR AND DISCLOSE LOCATION OF PROPERTY</font>
+            </p>
+            <p><span style="text-decoration: italic;">
+									Document Available (#1057134177)
+									<nobr><a class="doc-tif" href="GetDocument.aspx?ct=tulsa&amp;cn=CJ-2024-1&amp;bc=1057134177&amp;fmt=tif" target="_blank" title="Download document in TIFF format.">TIFF</a></nobr>
+									&nbsp;&nbsp;
+									<nobr><a class="doc-pdf" href="GetDocument.aspx?ct=tulsa&amp;bc=1057134177&amp;cn=CJ-2024-1&amp;fmt=pdf" target="_blank" title="Download document in PDF format.">PDF</a></nobr></span></p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="black"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="black"><nobr>TEXT</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="black">OCIS HAS AUTOMATICALLY ASSIGNED JUDGE CIVIL DOCKET A TO THIS CASE.</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="000000"><nobr>01-02-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="000000"><nobr>ACCOUNT</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="000000">RECEIPT # 2024-4572672 ON 01/02/2024. <br>
+ PAYOR: ROBINSON, HOOVER &amp; FUDGE PLLC TOTAL AMOUNT PAID: $ 262.14.<br>
+ LINE ITEMS:<br>
+ CJ-2024-1: $183.00 ON AC01 CLERK FEES.<br>
+ CJ-2024-1: $6.00 ON AC23 LAW LIBRARY FEE CIVIL AND CRIMINAL.<br>
+ CJ-2024-1: $1.66 ON AC31 COURT CLERK REVOLVING FUND.<br>
+ CJ-2024-1: $5.00 ON AC58 OKLAHOMA COURT APPOINTED SPECIAL ADVOCATES.<br>
+ CJ-2024-1: $1.55 ON AC59 COUNCIL ON JUDICIAL COMPLAINTS REVOLVING FUND.<br>
+ CJ-2024-1: $7.00 ON AC64 DISPUTE MEDIATION FEES CIVIL ONLY.<br>
+ CJ-2024-1: $0.45 ON AC65 STATE JUDICIAL REVOLVING FUND, INTERPRETER SVCS.<br>
+ CJ-2024-1: $2.48 ON AC67 DISTRICT COURT REVOLVING FUND.<br>
+ CJ-2024-1: $25.00 ON AC79 OCIS REVOLVING FUND.<br>
+ CJ-2024-1: $10.00 ON AC81 LENGTHY TRIAL FUND.<br>
+ CJ-2024-1: $10.00 ON AC88 SHERIFF’S SERVICE FEE FOR COURT HOUSE SECURITY.<br>
+ CJ-2024-1: $10.00 ON AC89 COURT CLERK'S RECORDS MANAGEMENT AND PRESERVATION FEE.<br></font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="blue"><nobr>01-11-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="blue"><nobr>CTFREE</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="blue">NIGHTINGALE, REBECCA<br>
+ORDER RESTRAINING DISPOSITION OF PROPERTY AND COMPELLING DEFENDANTS TO APPEAR AND DISCLOSE LOCATION OF PROPERTY ENTERED; HEARING IS SET FOR 02/27/2024 AT 10:00 A.M. IN COURTROOM 708.<br>
+<br>
+((CLERK PLACED ORDER IN JUDGE'S OUTBOX TO BE PICKED UP FOR FILING.))</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="GREEN"><nobr>01-17-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="GREEN"><nobr>COPY</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="GREEN">COPIES CHARGED - 1</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right">
+          <font color="green">$ 1.00</font>
+        </td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="black"><nobr>01-17-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="black"><nobr>O</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="black">ORDER RESTRAINING DISPOSITION OF PROPERTY AND COMPELLING DEFENDANTS TO APPEAR AND DISCLOSE LOCATION OF PROPERTY<br></font>
+            </p>
+            <p><span style="text-decoration: italic;">
+									Document Available (#1057526940)
+									<nobr><a class="doc-tif" href="GetDocument.aspx?ct=tulsa&amp;cn=CJ-2024-1&amp;bc=1057526940&amp;fmt=tif" target="_blank" title="Download document in TIFF format.">TIFF</a></nobr>
+									&nbsp;&nbsp;
+									<nobr><a class="doc-pdf" href="GetDocument.aspx?ct=tulsa&amp;bc=1057526940&amp;cn=CJ-2024-1&amp;fmt=pdf" target="_blank" title="Download document in PDF format.">PDF</a></nobr></span></p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="000000"><nobr>01-17-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="000000"><nobr>ACCOUNT</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="000000">RECEIPT # 2024-4577853 ON 01/17/2024. <br>
+ PAYOR: EMILY TOTAL AMOUNT PAID: $ 1.00.<br>
+ LINE ITEMS:<br>
+ CJ-2024-1: $1.00 ON AC01 CLERK FEES.<br></font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="black"><nobr>02-13-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="black"><nobr>S</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="black">PARTY HAS BEEN SUCCESSFULLY SERVED. BENJAMINE A RICHARDSON / 2/5/24</font>
+            </p>
+            <p><span style="text-decoration: italic;">
+									Document Available (#1057916527)
+									<nobr><a class="doc-tif" href="GetDocument.aspx?ct=tulsa&amp;cn=CJ-2024-1&amp;bc=1057916527&amp;fmt=tif" target="_blank" title="Download document in TIFF format.">TIFF</a></nobr>
+									&nbsp;&nbsp;
+									<nobr><a class="doc-pdf" href="GetDocument.aspx?ct=tulsa&amp;bc=1057916527&amp;cn=CJ-2024-1&amp;fmt=pdf" target="_blank" title="Download document in PDF format.">PDF</a></nobr></span></p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"><span class="partyname">RICHARDSON, BENJAMINE A</span></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="black"><nobr>02-13-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="black"><nobr>S</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="black">PARTY HAS BEEN SUCCESSFULLY SERVED. JAMARIO DAMONT RICHARDSON / 2/7/24</font>
+            </p>
+            <p><span style="text-decoration: italic;">
+									Document Available (#1057916523)
+									<nobr><a class="doc-tif" href="GetDocument.aspx?ct=tulsa&amp;cn=CJ-2024-1&amp;bc=1057916523&amp;fmt=tif" target="_blank" title="Download document in TIFF format.">TIFF</a></nobr>
+									&nbsp;&nbsp;
+									<nobr><a class="doc-pdf" href="GetDocument.aspx?ct=tulsa&amp;bc=1057916523&amp;cn=CJ-2024-1&amp;fmt=pdf" target="_blank" title="Download document in PDF format.">PDF</a></nobr></span></p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"><span class="partyname">RICHARDSON, JAMARIO DAMONT</span></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="blue"><nobr>02-27-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="blue"><nobr>CTFREE</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="blue">NIGHTINGALE, REBECCA<br>
+CASE COMES ON FOR HEARING; DANI SCHINZING APPEARS FOR PLAINTIFF; BENJAMINE RICHARDSON APPEARS AS DEFENDANT; JAMARIO DAMONT RICHARDSON FAILS TO APPEAR; CONTEMPT PAPERWORK TO BE SUBMITTED; ORDER FOR DELIVERY ENTERED; COURT FINDS THAT THE DEFENDANTS, ACTING SEPERATELY OR IN COURT WITH OTHERS, HAVE WRONGFULLY RETAINED A 2017 NISSAN ROGUE SPORT AND HAS CONCEALED THE SAME AWAY FROM PLAINTIFF; YOU ARE THEREFORE COMMANDED TO REPLEVY THE VEHICLE IN POSSESSION OF THE DEFENDANTS, AND/OR ANY THIRD PERSONS, AND DELIVER OR RELINQUISH POSSESSION OF THE SAME TO THE PLAINTIFF.<br>
+<br>
+((CLERK RETURNED ORDER TO COUNSEL FOR FILING.))</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="black"><nobr>03-04-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="black"><nobr>O</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="black">ORDER OF DELIVERY</font>
+            </p>
+            <p><span style="text-decoration: italic;">
+									Document Available (#1057532487)
+									<nobr><a class="doc-tif" href="GetDocument.aspx?ct=tulsa&amp;cn=CJ-2024-1&amp;bc=1057532487&amp;fmt=tif" target="_blank" title="Download document in TIFF format.">TIFF</a></nobr>
+									&nbsp;&nbsp;
+									<nobr><a class="doc-pdf" href="GetDocument.aspx?ct=tulsa&amp;bc=1057532487&amp;cn=CJ-2024-1&amp;fmt=pdf" target="_blank" title="Download document in PDF format.">PDF</a></nobr></span></p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="black"><nobr>09-26-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="black"><nobr>MODJ</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="black">MOTION FOR ENTRY OF  DEFAULT JUDGMENT / CERTIFICATE OF SERVICE / A - J</font>
+            </p>
+            <p><span style="text-decoration: italic;">
+									Document Available (#1059409246)
+									<nobr><a class="doc-tif" href="GetDocument.aspx?ct=tulsa&amp;cn=CJ-2024-1&amp;bc=1059409246&amp;fmt=tif" target="_blank" title="Download document in TIFF format.">TIFF</a></nobr>
+									&nbsp;&nbsp;
+									<nobr><a class="doc-pdf" href="GetDocument.aspx?ct=tulsa&amp;bc=1059409246&amp;cn=CJ-2024-1&amp;fmt=pdf" target="_blank" title="Download document in PDF format.">PDF</a></nobr></span></p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="BLACK"><nobr>09-26-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="BLACK"><nobr>ANMS</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="BLACK">AFFIDAVIT AS TO MILITARY SERVICE</font>
+            </p>
+            <p><span style="text-decoration: italic;">
+									Document Available (#1059409287)
+									<nobr><a class="doc-tif" href="GetDocument.aspx?ct=tulsa&amp;cn=CJ-2024-1&amp;bc=1059409287&amp;fmt=tif" target="_blank" title="Download document in TIFF format.">TIFF</a></nobr>
+									&nbsp;&nbsp;
+									<nobr><a class="doc-pdf" href="GetDocument.aspx?ct=tulsa&amp;bc=1059409287&amp;cn=CJ-2024-1&amp;fmt=pdf" target="_blank" title="Download document in PDF format.">PDF</a></nobr></span></p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="blue"><nobr>10-24-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="blue"><nobr>CTFREE</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="blue">NIGHTINGALE, REBECCA<br>
+JUDGMENT SUBMITTED AND SIGNED BY THE COURT. <br>
+A JUDGMENT, DECREE OR APPEALABLE ORDER, WHETHER INTERLOCUTORY OR FINAL, SHALL NOT BE ENFORCEABLE IN WHOLE OR IN PART UNLESS OR UNTIL IT IS SIGNED BY THE COURT AND FILED ACCORDING TO §12-696.2.<br>
+<br>
+((CLERK PLACED ORDER IN JUDGE'S OUTBOX TO BE PICKED UP FOR FILING.))<br></font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="8B0000C"><nobr>10-24-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="8B0000C"><nobr>DISPCVDJ</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="8B0000C">JUDGMENT SUBMITTED AND SIGNED BY THE COURT. <br>
+<br></font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"><span class="count_issue">1&nbsp;&nbsp;</span></td>
+        <td valign="top"><span class="partyname">RICHARDSON, BENJAMINE A</span></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="8B0000C"><nobr>10-24-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="8B0000C"><nobr>DISPCVDJ</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="8B0000C">JUDGMENT SUBMITTED AND SIGNED BY THE COURT. <br>
+<br></font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"><span class="count_issue">1&nbsp;&nbsp;</span></td>
+        <td valign="top"><span class="partyname">RICHARDSON, JAMARIO DAMONT</span></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="8B0000C"><nobr>10-24-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="8B0000C"><nobr>DISPCVDJ</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="8B0000C">JUDGMENT SUBMITTED AND SIGNED BY THE COURT. <br>
+<br></font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"><span class="count_issue">2&nbsp;&nbsp;</span></td>
+        <td valign="top"><span class="partyname">RICHARDSON, BENJAMINE A</span></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="8B0000C"><nobr>10-24-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="8B0000C"><nobr>DISPCVDJ</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="8B0000C">JUDGMENT SUBMITTED AND SIGNED BY THE COURT. <br>
+<br></font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"><span class="count_issue">2&nbsp;&nbsp;</span></td>
+        <td valign="top"><span class="partyname">RICHARDSON, JAMARIO DAMONT</span></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="1"><nobr>10-25-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="1"><nobr>JUDG</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="1">JUDGMENT AGAINST DEFS</font>
+            </p>
+            <p><span style="text-decoration: italic;">
+									Document Available (#1059678907)
+									<nobr><a class="doc-tif" href="GetDocument.aspx?ct=tulsa&amp;cn=CJ-2024-1&amp;bc=1059678907&amp;fmt=tif" target="_blank" title="Download document in TIFF format.">TIFF</a></nobr>
+									&nbsp;&nbsp;
+									<nobr><a class="doc-pdf" href="GetDocument.aspx?ct=tulsa&amp;bc=1059678907&amp;cn=CJ-2024-1&amp;fmt=pdf" target="_blank" title="Download document in PDF format.">PDF</a></nobr></span></p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"><span class="partyname">RICHARDSON, JAMARIO DAMONT</span></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="BLACK"><nobr>10-25-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="BLACK"><nobr>STAY</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="BLACK">STAY EXECUTION UNTIL 11-4-24</font>
+            </p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow evenRow primary-entry">
+        <td valign="top">
+          <font color="black"><nobr>11-19-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="black"><nobr>CERTS</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="black">CERTIFICATE OF SERVICE</font>
+            </p>
+            <p><span style="text-decoration: italic;">
+									Document Available (#1060213155)
+									<nobr><a class="doc-tif" href="GetDocument.aspx?ct=tulsa&amp;cn=CJ-2024-1&amp;bc=1060213155&amp;fmt=tif" target="_blank" title="Download document in TIFF format.">TIFF</a></nobr>
+									&nbsp;&nbsp;
+									<nobr><a class="doc-pdf" href="GetDocument.aspx?ct=tulsa&amp;bc=1060213155&amp;cn=CJ-2024-1&amp;fmt=pdf" target="_blank" title="Download document in PDF format.">PDF</a></nobr></span></p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right"></td>
+      </tr>
+      <tr class="docketRow oddRow primary-entry">
+        <td valign="top">
+          <font color="black"><nobr>11-19-2024&nbsp;</nobr></font>
+        </td>
+        <td valign="top">
+          <font class="docket_code" color="black"><nobr>CERTS</nobr></font>
+        </td>
+        <td valign="top">
+          <div class="description-wrapper">
+            <p>
+              <font color="black">CERTIFICATE OF SERVICE</font>
+            </p>
+            <p><span style="text-decoration: italic;">
+									Document Available (#1060213151)
+									<nobr><a class="doc-tif" href="GetDocument.aspx?ct=tulsa&amp;cn=CJ-2024-1&amp;bc=1060213151&amp;fmt=tif" target="_blank" title="Download document in TIFF format.">TIFF</a></nobr>
+									&nbsp;&nbsp;
+									<nobr><a class="doc-pdf" href="GetDocument.aspx?ct=tulsa&amp;bc=1060213151&amp;cn=CJ-2024-1&amp;fmt=pdf" target="_blank" title="Download document in PDF format.">PDF</a></nobr></span></p>
+          </div>
+        </td>
+        <td align="center" valign="top"></td>
+        <td valign="top"></td>
+        <td valign="top" align="right"></td>
+      </tr>
+    </tbody>
+  </table>
+</div></div>
+	
+	<footer id="colophon" class="site-footer fullwidth" data-elastic-exclude="">
+		<div class="site-info oscn-content">
+			<div class="center-brand">
+			<a class="oscn-brand" href="/">
+				<div class="oscn-brand-container">
+					<div class="oscn-logo"><img alt="OSCN logo" src="https://www.oscn.net/static/supreme-court-seal-updated-color.svg"></div>
+					<div class="oscn-full-name"><span>OKLAHOMA <br>STATE <br>COURTS <br>NETWORK </span></div>
+					<div class="oscn-abbreviation"><span>OSCN</span></div>
+				</div>
+			</a>
+			
+			</div>
+			<div class="row">
+				<div class="col-xs-12" style="text-align: center;">
+							
+					Oklahoma Supreme Court<br>
+					2100 N. Lincoln Blvd.<br>
+					Oklahoma City, OK 73105<br>
+					<br>
+					<br>					
+				</div>
+			</div>
+		</div><!-- .site-info -->
+		<div style="padding: 2rem ;background-color: #033c60; position: relative; z-index: 999; border-top: 4px solid #164B6C;" class="site-footer-links">
+		<a href="#footer-links" data-toggle="shrink" aria-expanded="false" aria-controls="footer-links" class="footer-links-anchor content-width"><span></span></a>
+			<div id="footer-links" class="shrink content-width footer-links" hidden="">
+				
+<div class="wp-block-group footer-links row">
+<div class="wp-block-group col-xs-12 col-sm-6 col-lg-3">
+<h4 class="wp-block-heading"><a href="http://admin.oscn.net/contact/">contact</a></h4>
+<p>EMAIL:&nbsp;<a href="mailto:webmaster@oscn.net">webmaster@oscn.net</a><br>Oklahoma Judicial Center<br>2100 N Lincoln Blvd.<br>Oklahoma City, OK 73105</p>
+<p></p>
+</div>
+<div class="wp-block-group col-xs-12 col-sm-6 col-lg-3">
+<h4 class="wp-block-heading">courts</h4>
+<ul class="wp-block-list">
+<li><a href="https://oksc.oscn.net/">Supreme Court of Oklahoma</a></li>
+<li><a href="http://www.okcca.net/">Court of Criminal Appeals</a></li>
+<li>Court of Civil Appeals</li>
+<li><a href="/courts/">District Courts</a></li>
+</ul>
+<p></p>
+</div>
+<div class="wp-block-group col-xs-12 col-sm-6 col-lg-3">
+<h4 class="wp-block-heading">decisions</h4>
+<ul class="wp-block-list">
+<li><a href="https://www.oscn.net/decisions/">New Decisions</a></li>
+<li><a href="http://www.oscn.net/applications/oscn/Index.asp?ftdb=STOKCSSC">Supreme Court of Oklahoma</a></li>
+<li><a href="http://www.oscn.net/applications/oscn/Index.asp?ftdb=STOKCSCR">Court of Criminal Appeals</a></li>
+<li><a href="http://www.oscn.net/applications/oscn/Index.asp?ftdb=STOKCSCV">Court of Civil Appeals</a></li>
+</ul>
+<p></p>
+</div>
+<div class="wp-block-group col-xs-12 col-sm-6 col-lg-3">
+<h4 class="wp-block-heading">programs</h4>
+<ul class="wp-block-list">
+<li><strong>ADRS </strong>- <a href="http://www.oscn.net/static/adr/default.aspx">Early Settlement Mediation</a></li>
+<li><strong>OKCCIP </strong>- <a href="https://okccip.oscn.net/">Children's Court Improvement Program</a></li>
+<li><strong>JNC</strong> - <a href="https://www.oscn.net/jnc/">Judicial Nominating Commission</a></li>
+<li><a href="http://www.oscn.net/static/forms/aoc_forms/interpreter.asp">Certified Courtroom Interpreters</a></li>
+<li><a href="/court-reporters/">Certified Shorthand Reporters</a></li>
+</ul>
+<p></p>
+</div>
+</div>
+<hr class="wp-block-separator has-alpha-channel-opacity">
+			</div>
+			<div class="content-width footer-bottom-links">
+				
+<ul class="wp-block-list horizontal-list">
+<li><a href="https://efile.oscn.net/">e-filing</a></li>
+<li><a href="https://pay.oscn.net/epayments/">e-payments</a></li>
+<li><a href="/jobs/">Careers</a></li>
+<li><a href="https://www.oscn.net/pages/accessibility">Accessibility</a></li>
+<li><a href="/applications/oscn/SimpleHelp.asp?HelpContextID=84">Contact Us</a></li>
+</ul>
+<p></p>
+			</div>
+		</div>
+	</footer>
+<!-- #colophon -->
+	</div>
+        <script src="/assets/js/jquery-1.11.1.min.js"></script>
+        <script src="/assets/js/bootstrap.min.js"></script>
+		<script src="/assets/js/adobe.aria.menu.min.js"></script>
+        <!--<script src="/assets/js/navigation.js"></script>-->
+        <script src="/assets/js/oscn.js"></script>	
+        <script src="/assets/js/table.sort.filter.js"></script>	
+<script>
+	if (window.NodeList && !NodeList.prototype.forEach) { NodeList.prototype.forEach = Array.prototype.forEach; }
+	
+	var d = new Date()
+	var cb = d.getFullYear().toString() + (d.getMonth()+1).toString() + ("0" + d.getDate()).slice(-2) + d.getHours()
+	
+	var anchors = document.querySelectorAll("a[href$='.pdf']")
+	anchors.forEach(function(a){
+		a.href = a.href.split('?')[0] + "?d=" + cb;		
+	});
+	
+</script>		
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mustache.js/4.1.0/mustache.min.js?ver=1" id="mustache-js"></script><script src="/dockets/scripts/dockets.js?v=1.0.0"></script><script src="/dockets/scripts/casetracker.js?v=1.0.0"></script>
+<!--[if IE 7]>
+	<script>
+		var height = $(".home-banner").height();
+		$("#bg").height(height);
+	</script>
+<![endif]-->
+    
+
+</body></html>
