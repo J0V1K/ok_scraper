@@ -35,42 +35,20 @@ The schema of `register_of_actions.json` matches the SF scraper's, so
 
 ## Workflow
 
-### 1. First: calibrate selectors against real OSCN HTML
+Selectors have been calibrated against `tulsa CJ-2024-1` (see
+`data/_calibration/`). The parser uses OSCN's embedded
+`<script id="json_style">` block for case metadata and
+`tr.docketRow.primary-entry` for docket events, both confirmed against a
+real page.
 
-OSCN page selectors in `scraper.py` are best-guesses based on URL shape and
-ASP.NET conventions. They have **not** been verified against a live successful
-fetch. Before any long run, calibrate against one case:
+### 1. Pilot run on one day
 
-```bash
-python ok_scraper/scraper.py --calibrate CJ-2024-1 --county tulsa
-```
-
-This launches Chrome on port 9223, opens the case page, waits for you to
-solve Cloudflare Turnstile, and dumps the page's full HTML and the parsed
-JSON to `ok_scraper/data/_calibration/`. Open the HTML file in a browser and
-confirm:
-
-- Search results: which DOM element wraps the case-link table? Does the
-  `SEARCH_RESULT_PARSE_JS` selector pick up only real cases or also
-  sidebar/recent-cases links?
-- Case detail: what is the actual class for the docket-rows table? Is it
-  `dockettext`, `docketRow`, `docket`, or something else?
-- Document links: do they go through `GetDocument.aspx`, `DownloadFile.aspx`,
-  or a viewer page?
-
-Adjust the JS selectors in `scraper.py` (search for `# CALIBRATE:`) until
-the parsed JSON shows real `case_style`, `filed`, `judge`, and a populated
-`docket_entries` array.
-
-### 2. Pilot run on one day
-
-Once calibrated, scrape a single weekday to verify end-to-end behavior:
+Scrape a single weekday to verify end-to-end behavior:
 
 ```bash
 python ok_scraper/scraper.py \
   --start-date 2024-03-15 --end-date 2024-03-15 \
-  --county tulsa --types CJ,CV \
-  --max-concurrent-cases 2
+  --county tulsa --type CJ,CV
 ```
 
 Expected output:
@@ -90,20 +68,19 @@ Confirm `data/2024-03-15/day_summary.json` shows `scraped_cases` close to
 `total_cases`, and that case directories contain non-empty
 `register_of_actions.json` plus PDFs.
 
-### 3. Backfill range
+### 2. Backfill range
 
 ```bash
 python ok_scraper/scraper.py \
   --start-date 2020-01-02 --end-date 2025-12-31 \
-  --county tulsa --types CJ,CV \
-  --max-concurrent-cases 2
+  --county tulsa --type CJ,CV
 ```
 
 Solve Cloudflare in the Chrome window when prompted (typically once per
 session). The scraper writes `day_summary.json` after every day, so you
 can interrupt and resume.
 
-### 4. Failed-only retry
+### 3. Failed-only retry
 
 After a first pass, rerun only cases listed in each day's
 `failed_cases.json`:
@@ -112,6 +89,18 @@ After a first pass, rerun only cases listed in each day's
 python ok_scraper/scraper.py \
   --start-date 2020-01-02 --end-date 2025-12-31 \
   --county tulsa --failed-only
+```
+
+### 4. Sequential batching (when search is unreliable)
+
+When the OSCN search endpoint is gated harder than case-info pages, you
+can iterate case numbers directly. The scraper still extracts each case's
+filed date from the page and writes to the correct `YYYY-MM-DD` folder.
+
+```bash
+python ok_scraper/scraper.py \
+  --year 2024 --type CJ --start-num 1 --count 200 \
+  --county tulsa
 ```
 
 ### 5. Hand off to detection_pilot
@@ -134,14 +123,18 @@ way they did for SF.
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `--start-date` / `--end-date` | required | Inclusive YYYY-MM-DD range; weekdays only. |
+| `--start-date` / `--end-date` | — | Inclusive YYYY-MM-DD range, weekdays only. Required for search mode. |
 | `--county` | `tulsa` | OSCN db parameter (`tulsa` or `oklahoma`). |
-| `--types` | `CJ,CV` | Comma-separated case-type prefixes. |
-| `--port` | `9223` | Chrome remote-debugging port (offset from SF's 9222 to allow side-by-side runs). |
-| `--max-concurrent-cases` | `2` | Concurrent case-detail fetches. Stays low because each request goes through the browser. |
-| `--data-root` | `ok_scraper/data` | Output directory. |
+| `--type` | `CJ,CV` | Comma-separated case-type prefixes. |
 | `--failed-only` | off | Only retry cases in each day's `failed_cases.json`. |
-| `--calibrate <CASE>` | — | Fetch one case, dump HTML + parsed JSON to `data/_calibration/`. |
+| `--year` | — | Sequential batching: iterate `<TYPE>-<YEAR>-N` for `--count` cases starting at `--start-num`. Skips search. |
+| `--start-num` | `1` | Start integer for `--year` batching. |
+| `--count` | `10` | How many sequential cases to attempt in `--year` batching. |
+
+Chrome runs on debug port `9223` (offset from SF's `9222`) using profile
+`~/.ok_manual_profile`. PDF downloads are serialized via a single
+semaphore — concurrency is intentionally conservative to stay under
+OSCN's rate-limit / IP-restriction thresholds.
 
 ## Notes
 
