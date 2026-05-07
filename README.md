@@ -8,13 +8,25 @@ For the research motivation and scope, see [GOALS.md](GOALS.md).
 
 ## Setup
 
-The scraper reuses the SF scraper's Python environment (Playwright + tqdm).
-If you don't already have it, set up `sf_scraper_fork/.venv` first.
+The scraper runs under `detection_pilot/.venv` (Python 3.13), which has
+both Playwright and Camoufox installed. Camoufox is a fingerprint-hardened
+Playwright build that's necessary to clear Cloudflare gates on OSCN
+document downloads — running under plain Chrome via CDP causes the IP to
+trip CF's "failed verification" counter and get restricted.
 
 ```bash
 cd /Users/jovik/Desktop/docket_gen
-source sf_scraper_fork/.venv/bin/activate
+detection_pilot/.venv/bin/python ok_scraper/scraper.py --help
 ```
+
+The Camoufox path is the default. `--chrome` falls back to attaching to
+a system Chrome over CDP (port 9223) — kept only as a debugging aid;
+expect significantly more CF gates and a faster path to IP restriction.
+
+The Camoufox profile is ephemeral by default (managed in a tempdir per
+launch), so there's no manual reset needed between runs. The system
+Chrome profile at `~/.ok_manual_profile` is only relevant when running
+with `--chrome`.
 
 ## Output layout
 
@@ -35,73 +47,58 @@ The schema of `register_of_actions.json` matches the SF scraper's, so
 
 ## Workflow
 
-Selectors have been calibrated against `tulsa CJ-2024-1` (see
-`data/_calibration/`). The parser uses OSCN's embedded
-`<script id="json_style">` block for case metadata and
-`tr.docketRow.primary-entry` for docket events, both confirmed against a
-real page.
+Selectors are calibrated against `tulsa CJ-2024-1` (see
+`data/_calibration/`). Metadata comes from OSCN's embedded
+`<script id="json_style">` block; docket events from
+`tr.docketRow.primary-entry`. PDF downloads are click-driven from the
+case page (`a.doc-pdf` element) so each request is dispatched as a real
+in-session interaction with Cloudflare-trusted referer/cookies.
 
-### 1. Pilot run on one day
-
-Scrape a single weekday to verify end-to-end behavior:
-
-```bash
-python ok_scraper/scraper.py \
-  --start-date 2024-03-15 --end-date 2024-03-15 \
-  --county tulsa --type CJ,CV
-```
-
-Expected output:
-
-```
-Chrome already running on port 9223.
-Dates to process: 1 (weekdays only)
-
-Processing 2024-03-15 (tulsa, types=CJ,CV)
-  CJ: 18 cases
-  CV: 7 cases
-  25 pending of 25 total
-2024-03-15:  60%|████████  | 15/25 [01:30<01:00,  6.0s/case]
-```
-
-Confirm `data/2024-03-15/day_summary.json` shows `scraped_cases` close to
-`total_cases`, and that case directories contain non-empty
-`register_of_actions.json` plus PDFs.
-
-### 2. Backfill range
+### 1. Smoke test on a small batch
 
 ```bash
-python ok_scraper/scraper.py \
-  --start-date 2020-01-02 --end-date 2025-12-31 \
-  --county tulsa --type CJ,CV
+detection_pilot/.venv/bin/python ok_scraper/scraper.py \
+  --year 2024 --type CJ --start 79 --count 3
 ```
 
-Solve Cloudflare in the Chrome window when prompted (typically once per
-session). The scraper writes `day_summary.json` after every day, so you
-can interrupt and resume.
+Expected: 3 cases scraped, all PDFs downloaded silently (success returns
+without printing), and a `register_of_actions.json` per case with
+non-null `doc_filename` for every high-value action.
 
-### 3. Failed-only retry
+### 2. Mega-case test (verify the cap)
 
-After a first pass, rerun only cases listed in each day's
-`failed_cases.json`:
+CJ-2024-82 is a 36-doc case that previously triggered an IP block.
+With the per-case cap, the scraper should now download up to 5 PDFs and
+defer the rest:
 
 ```bash
-python ok_scraper/scraper.py \
-  --start-date 2020-01-02 --end-date 2025-12-31 \
-  --county tulsa --failed-only
+detection_pilot/.venv/bin/python ok_scraper/scraper.py \
+  --year 2024 --type CJ --start 82 --count 1
 ```
 
-### 4. Sequential batching (when search is unreliable)
+Expected: 5 PDFs saved, the remaining 31 actions in
+`register_of_actions.json` show `doc_filename: null`. No IP block.
 
-When the OSCN search endpoint is gated harder than case-info pages, you
-can iterate case numbers directly. The scraper still extracts each case's
-filed date from the page and writes to the correct `YYYY-MM-DD` folder.
+### 3. Backfill batch
+
+Auto-resume picks up where the last run left off:
 
 ```bash
-python ok_scraper/scraper.py \
-  --year 2024 --type CJ --start-num 1 --count 200 \
-  --county tulsa
+detection_pilot/.venv/bin/python ok_scraper/scraper.py \
+  --year 2024 --type CJ --count 25
 ```
+
+The scraper writes `register_of_actions.json` per case as it goes; if
+you interrupt and rerun, auto-resume continues from the highest-numbered
+case directory present.
+
+### 4. Failed-only retry pass (future)
+
+Cases hitting the per-case cap or the consecutive-gate circuit breaker
+land in `register_of_actions.json` with `doc_filename: null` for the
+deferred PDFs. A future pass could reload those entries and retry their
+clicks under cooler session conditions; the loader for that mode isn't
+yet wired up.
 
 ### 5. Hand off to detection_pilot
 
@@ -123,32 +120,29 @@ way they did for SF.
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `--start-date` / `--end-date` | — | Inclusive YYYY-MM-DD range, weekdays only. Required for search mode. |
-| `--county` | `tulsa` | OSCN db parameter (`tulsa` or `oklahoma`). |
-| `--type` | `CJ,CV` | Comma-separated case-type prefixes. |
-| `--failed-only` | off | Only retry cases in each day's `failed_cases.json`. |
-| `--year` | — | Sequential batching: iterate `<TYPE>-<YEAR>-N` for `--count` cases starting at `--start-num`. Skips search. |
-| `--start-num` | `1` | Start integer for `--year` batching. |
-| `--count` | `10` | How many sequential cases to attempt in `--year` batching. |
+| `--year` | `2024` | Year segment of the case number to iterate. |
+| `--type` | `CJ` | Case-type prefix (single value; multi-type isn't supported in sequential mode). |
+| `--start` | auto-resume | First sequence number. Defaults to `max(existing CJ_<YEAR>_N) + 1` under `data/`. |
+| `--count` | `2` | How many sequential cases to attempt this run. |
+| `--chrome` | off | Fall back to attaching to system Chrome over CDP (debugging only). Default is Camoufox. |
 
-Chrome runs on debug port `9223` (offset from SF's `9222`) using profile
-`~/.ok_manual_profile`. PDF downloads are serialized via a single
-semaphore — concurrency is intentionally conservative to stay under
-OSCN's rate-limit / IP-restriction thresholds.
+PDF downloads are serialized via a single semaphore. Per-case downloads
+are capped at `PER_CASE_PDF_CAP = 5`, and a session abandons further
+PDFs in a case after `MAX_CONSECUTIVE_GATES = 2` consecutive failures —
+both bounds prevent a single mega-litigation case from burning the IP's
+verification budget. Inter-PDF sleep is `random.uniform(5, 12)` seconds
+on top of Camoufox's `humanize=True` jitter.
 
 ## Notes
 
-- **Profile location:** `~/.ok_manual_profile`. Distinct from SF's profile so
-  Cloudflare clearance for one site doesn't get tangled with the other.
-- **Document discovery:** the parser keeps every docket row, but only rows
-  with a `GetDocument.aspx` link get downloaded. Rows are downloaded only if
-  their description matches the `is_high_value` filter (see
-  `HIGH_VALUE_*_RE` patterns in `scraper.py`).
-- **Filter calibration:** the `is_high_value` patterns are Oklahoma-tuned but
-  not exhaustive. After your first day of scraping, run
-  `examples/generate_high_value_examples.py` against `ok_scraper/data` and
-  spot-check which buckets the live filter assigned to each PDF. Tighten or
-  loosen patterns based on what you see.
+- **Document discovery:** every docket row with a `GetDocument.aspx` link
+  is recorded in `register_of_actions.json`. Only rows whose description
+  matches `is_high_value` get downloaded (see `HIGH_VALUE_*_RE` patterns
+  in `scraper.py`).
+- **Filter calibration:** the `is_high_value` patterns are Oklahoma-tuned
+  but not exhaustive. After your first batch, run
+  `examples/generate_high_value_examples.py` against `ok_scraper/data`
+  and spot-check assigned buckets. Tighten or loosen patterns based on
+  what you see.
 - **`_archive/`** holds the original exploration scripts (cloudscraper,
-  undetected-chromedriver, etc.) for reference. None worked end-to-end;
-  the manual-Turnstile path in `scraper.py` is the surviving approach.
+  undetected-chromedriver, etc.) for reference; none worked end-to-end.
