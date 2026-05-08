@@ -213,10 +213,17 @@ async def wait_for_human_solve(
     auto_submit=True,
     return_on_submit=False,
     closed_ok=False,
-    max_wait_s=None,
+    max_wait_s=90,
     max_submit_reloads=3,
 ):
-    """Pause until the user solves the Cloudflare challenge, with auto-submit and retries."""
+    """Pause until the user solves the Cloudflare challenge, with auto-submit and retries.
+
+    `max_wait_s` defaults to 90 to guarantee an upper bound on the loop. Without
+    this, an unrecognized page state (e.g. CF "verifying your connection..."
+    interstitial that doesn't match our challenge markers OR our success
+    markers) leaves the loop with no exit condition. The download-path call
+    site overrides this with a tighter 35s.
+    """
     print(f"Waiting for human solve (detecting: '{target_text}', auto_submit={auto_submit}, return_on_submit={return_on_submit})...")
     start_wait = time.monotonic()
     submitted_at = 0
@@ -296,14 +303,29 @@ async def wait_for_human_solve(
             
             submitted_at = 0
             submit_reload_count = 0
+            content_lower = content.lower()
+            on_oscn_doc_path = (
+                "getcaseinformation.aspx" in url_lower
+                or "getdocument.aspx" in url_lower
+            )
+            no_turnstile_marker = (
+                "turnstile" not in content_lower
+                and "challenge-platform" not in content_lower
+                and "just a moment" not in title.lower()
+            )
             success_indicators = [
-                target_text in content, 
-                "docketlist" in content.lower(), 
-                "Case Information" in content, 
-                "%PDF-" in content[:100], 
-                "getdocument.aspx" in url_lower and "turnstile" not in content.lower()
+                target_text in content,
+                "docketlist" in content_lower,
+                "Case Information" in content,
+                "%PDF-" in content[:100],
+                "getdocument.aspx" in url_lower and "turnstile" not in content_lower,
+                # Fallback: we navigated to an OSCN doc URL, the page
+                # rendered a non-trivial body, and no challenge markers
+                # remain. This catches cases where a recognized success
+                # text hasn't yet painted (slow load) or layout differs.
+                on_oscn_doc_path and no_turnstile_marker and len(content) > 5000,
             ]
-            
+
             if any(success_indicators):
                 print(f"Challenge cleared! Detected: {title}")
                 return True
@@ -484,26 +506,41 @@ async def scrape_case_detail(context, page, case_data):
     except: pass
 
     await wait_for_human_solve(page, target_text="Case Information")
-    
+
+    # wait_for_human_solve declares the page cleared when it sees
+    # "Case Information" in the document, but that phrase appears in a
+    # header/breadcrumb that paints BEFORE table.docketlist renders.
+    # Without an explicit wait, we sometimes evaluate the DOM mid-render
+    # and the parser sees no docket table -> empty actions -> wrongly
+    # short-circuited as an empty case. Wait for at least one of the
+    # case-page structures before parsing.
+    try:
+        await page.wait_for_selector("table.docketlist, table.caseStyle", timeout=8000)
+    except Exception:
+        pass
+
     data = await page.evaluate("""() => {
-        const table = document.querySelector('table.docketlist');
-        if (!table) return { actions: [], judge: '', style: '' };
-        const rows = Array.from(table.querySelectorAll('tr.docketRow, tr'));
-        const actions = [];
-        rows.forEach(row => {
-            const tds = Array.from(row.querySelectorAll('td'));
-            if (tds.length < 3) return;
-            const date = tds[0].innerText.trim();
-            if (!/^\\d{2}-\\d{2}-\\d{4}$/.test(date)) return;
-            const code = tds[1].innerText.trim();
-            const wrapper = tds[2].querySelector('.description-wrapper');
-            let desc = wrapper ? wrapper.innerText.split('Document Available')[0].trim() : tds[2].innerText.split('Document Available')[0].trim();
-            desc = desc.replace(/\\[(PDF|TIFF)\\]/gi, '').replace(/\\s+/g, ' ').trim();
-            const pdfLink = row.querySelector('a.doc-pdf') || row.querySelector('a[href*="fmt=pdf"]');
-            const genericLink = row.querySelector('a[href*="GetDocument.aspx"]');
-            actions.push({ date, code, proceedings: desc, doc_url: (pdfLink || genericLink) ? (pdfLink || genericLink).href : null });
-        });
+        const dock = document.querySelector('table.docketlist');
         const styleTbl = document.querySelector('table.caseStyle');
+        const docket_table_present = dock !== null;
+        const case_style_present = styleTbl !== null;
+        const actions = [];
+        if (dock) {
+            const rows = Array.from(dock.querySelectorAll('tr.docketRow, tr'));
+            rows.forEach(row => {
+                const tds = Array.from(row.querySelectorAll('td'));
+                if (tds.length < 3) return;
+                const date = tds[0].innerText.trim();
+                if (!/^\\d{2}-\\d{2}-\\d{4}$/.test(date)) return;
+                const code = tds[1].innerText.trim();
+                const wrapper = tds[2].querySelector('.description-wrapper');
+                let desc = wrapper ? wrapper.innerText.split('Document Available')[0].trim() : tds[2].innerText.split('Document Available')[0].trim();
+                desc = desc.replace(/\\[(PDF|TIFF)\\]/gi, '').replace(/\\s+/g, ' ').trim();
+                const pdfLink = row.querySelector('a.doc-pdf') || row.querySelector('a[href*="fmt=pdf"]');
+                const genericLink = row.querySelector('a[href*="GetDocument.aspx"]');
+                actions.push({ date, code, proceedings: desc, doc_url: (pdfLink || genericLink) ? (pdfLink || genericLink).href : null });
+            });
+        }
         let judge = '', style = '';
         if (styleTbl) {
             const tds = styleTbl.querySelectorAll('td');
@@ -513,16 +550,26 @@ async def scrape_case_detail(context, page, case_data):
             }
             style = styleTbl.innerText.split('\\n')[0].trim();
         }
-        return { actions, judge, style };
+        return { actions, judge, style, docket_table_present, case_style_present };
     }""")
+
+    # Sanity check: if neither structural marker rendered, the page
+    # didn't finish loading (or hit some unrecognized layout). Don't
+    # write a register record — leaving the case directory absent lets
+    # auto-resume pick the case back up on the next run instead of
+    # baking in a false "empty" marker.
+    if not data.get('docket_table_present') and not data.get('case_style_present'):
+        print(f"  {case_num}: case-info page never rendered; not writing register (will retry next run)")
+        return None
 
     case_dir = DATA_ROOT / case_num.replace('-', '_')
     case_dir.mkdir(parents=True, exist_ok=True)
 
-    # Short-circuit: cases with no docket entries (sealed, "No Record",
-    # or empty case-info pages). Record an explicit empty marker so
-    # post-hoc analysis can distinguish "case has no docs" from "we
-    # failed to scrape." No PDF anchor lookups, no inner-loop sleeps.
+    # Short-circuit: a real empty/no-record case shows the case-style
+    # block (so we know the page rendered) but no rows in the docket
+    # table, OR a "No Record." marker in the case style. Distinguishing
+    # this from a load-race is what `docket_table_present` /
+    # `case_style_present` are for above.
     style_lower = (data.get('style') or '').lower()
     is_no_record = "no record" in style_lower
     empty_case = (not data['actions']) or is_no_record
@@ -698,7 +745,8 @@ async def main():
                 continue
             log_path = log_dir / f"worker_{i}_{cursor}-{cursor + sz - 1}.log"
             cmd = [
-                sys.executable, sys.argv[0],
+                sys.executable, "-u",  # unbuffered stdout so logs flush in real time
+                sys.argv[0],
                 "--year", str(args.year),
                 "--type", args.type,
                 "--start", str(cursor),
