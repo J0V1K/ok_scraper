@@ -317,7 +317,11 @@ async def wait_for_human_solve(
         await asyncio.sleep(1)
 
 async def download_pdf(page, action, dest_path):
-    """Download a PDF by clicking the a.doc-pdf link from the case page.
+    """Download a PDF; return telemetry dict for the caller to record.
+
+    Return shape:
+        {"ok": bool, "mode": "session"|"click"|None, "elapsed_s": float,
+         "error": str|None}
 
     Primary path: reuse the browser context's authenticated session to
     request the PDF directly with the same cookies and referer as the
@@ -331,14 +335,24 @@ async def download_pdf(page, action, dest_path):
     solve. We keep retries shallow so a single case cannot burn the IP's
     verification budget.
     """
+    started = time.monotonic()
+
+    def _result(ok, mode=None, error=None):
+        return {
+            "ok": ok,
+            "mode": mode,
+            "elapsed_s": round(time.monotonic() - started, 3),
+            "error": error,
+        }
+
     async with DOWNLOAD_SEMAPHORE:
-        await asyncio.sleep(random.uniform(5.0, 12.0))
+        await asyncio.sleep(random.uniform(1.0, 3.0))
 
         doc_url = action.get("doc_url") or ""
         doc_id = parse_qs(urlparse(doc_url).query).get("bc", [""])[0]
         if not doc_id:
             print(f"      {dest_path.name}: no bc= in doc_url; skipping")
-            return False
+            return _result(False, error="no_bc_in_url")
 
         # Prefer the explicit PDF anchor; fall back to any doc anchor.
         matches = page.locator(f'a.doc-pdf[href*="bc={doc_id}"]')
@@ -346,7 +360,7 @@ async def download_pdf(page, action, dest_path):
             matches = page.locator(f'a[href*="bc={doc_id}"]')
         if await matches.count() == 0:
             print(f"      {dest_path.name}: link not found on page; skipping")
-            return False
+            return _result(False, error="link_not_found")
         link = matches.first
 
         async def attempt_session_request():
@@ -431,7 +445,7 @@ async def download_pdf(page, action, dest_path):
 
         session_ok = await attempt_session_request()
         if session_ok:
-            return True
+            return _result(True, mode="session")
 
         try:
             mode, download = await attempt_click_download()
@@ -444,29 +458,31 @@ async def download_pdf(page, action, dest_path):
                     mode, download = await attempt_click_download()
                 except Exception as e2:
                     print(f"      {dest_path.name}: download failed after CF clear: {e2}")
-                    return False
+                    return _result(False, error=f"cf_retry_failed: {str(e2)[:80]}")
             else:
                 print(f"      {dest_path.name}: download failed: {e}")
-                return False
+                return _result(False, error=f"click_download_failed: {str(e)[:80]}")
 
         if mode == "session":
-            return True
+            return _result(True, mode="session")
 
         try:
             await download.save_as(dest_path)
-            return True
+            return _result(True, mode="click")
         except Exception as e:
             print(f"      {dest_path.name}: save failed: {e}")
-            return False
+            return _result(False, mode="click", error=f"save_failed: {str(e)[:80]}")
 
 async def scrape_case_detail(context, page, case_data):
     """Scrape case and output SF-compatible register_of_actions.json."""
     case_num = case_data["case_num"]
+    case_started_at = utc_now_iso()
+    case_started_perf = time.monotonic()
     print(f"  Scraping {case_num}...")
-    await asyncio.sleep(random.uniform(2.0, 4.0))
+    await asyncio.sleep(random.uniform(0.5, 1.5))
     try: await page.goto(case_data['url'], wait_until="commit", timeout=60000)
     except: pass
-    
+
     await wait_for_human_solve(page, target_text="Case Information")
     
     data = await page.evaluate("""() => {
@@ -502,52 +518,131 @@ async def scrape_case_detail(context, page, case_data):
 
     case_dir = DATA_ROOT / case_num.replace('-', '_')
     case_dir.mkdir(parents=True, exist_ok=True)
-    
+
+    # Short-circuit: cases with no docket entries (sealed, "No Record",
+    # or empty case-info pages). Record an explicit empty marker so
+    # post-hoc analysis can distinguish "case has no docs" from "we
+    # failed to scrape." No PDF anchor lookups, no inner-loop sleeps.
+    style_lower = (data.get('style') or '').lower()
+    is_no_record = "no record" in style_lower
+    empty_case = (not data['actions']) or is_no_record
+    if empty_case:
+        reason = "no_record" if is_no_record else "empty_docket"
+        print(f"  {case_num}: {reason}; skipping PDF loop")
+        finished_at = utc_now_iso()
+        elapsed_s = round(time.monotonic() - case_started_perf, 3)
+        result = {
+            "metadata": {
+                "case_number": case_num,
+                "case_title": data.get('style', ''),
+                "filing_date": "",
+                "empty_case": True,
+                "empty_reason": reason,
+                "timing": {
+                    "started_at": case_started_at,
+                    "finished_at": finished_at,
+                    "elapsed_seconds": elapsed_s,
+                    "scraped_at": finished_at,
+                    "downloaded_docs": 0,
+                },
+            },
+            "actions": [],
+        }
+        with open(case_dir / "register_of_actions.json", "w") as f:
+            json.dump(result, f, indent=2)
+        return result
+
     final_actions = []
     downloaded = 0
     attempts = 0
     consecutive_gates = 0
     capped = False
+    download_telemetry = []  # per-attempt {mode, elapsed_s, error}
     for action in data['actions']:
         doc_filename = None
+        per_action = {
+            "date": action['date'],
+            "proceedings": action['proceedings'],
+            "fee": "",
+            "doc_url": action['doc_url'],
+            "doc_filename": None,
+        }
         if action['doc_url'] and is_high_value(action['proceedings']) and not capped:
             doc_id = parse_qs(urlparse(action['doc_url']).query).get('bc', ['doc'])[0]
             doc_filename = f"{action['date']}_{doc_id}.pdf"
             dest = case_dir / doc_filename
             if dest.exists():
                 downloaded += 1
+                per_action["doc_filename"] = doc_filename
+                per_action["download_mode"] = "cached"
             elif attempts >= PER_CASE_PDF_CAP:
-                # Per-case cap reached. Mark remaining high-value docs as
-                # not downloaded so a --failed-only pass can pick them up
-                # later under different (cooler) session conditions.
-                doc_filename = None
+                # Per-case cap reached. Defer remaining high-value docs.
                 capped = True
                 print(f"    Cap hit ({PER_CASE_PDF_CAP} PDFs); deferring remaining to retry pass")
             else:
                 attempts += 1
                 print(f"    Target found ({attempts}/{PER_CASE_PDF_CAP}): {action['proceedings'][:60]}...")
-                ok = await download_pdf(page, action, dest)
-                if ok:
+                result_dict = await download_pdf(page, action, dest)
+                download_telemetry.append({
+                    "doc_id": doc_id,
+                    "mode": result_dict.get("mode"),
+                    "elapsed_s": result_dict.get("elapsed_s"),
+                    "ok": result_dict.get("ok"),
+                    "error": result_dict.get("error"),
+                })
+                per_action["download_mode"] = result_dict.get("mode")
+                per_action["download_elapsed_s"] = result_dict.get("elapsed_s")
+                if result_dict.get("ok"):
                     downloaded += 1
+                    per_action["doc_filename"] = doc_filename
                     consecutive_gates = 0
                 else:
-                    doc_filename = None
+                    per_action["download_error"] = result_dict.get("error")
                     consecutive_gates += 1
                     if consecutive_gates >= MAX_CONSECUTIVE_GATES:
                         capped = True
                         print(f"    Circuit breaker: {consecutive_gates} consecutive failures; "
                               f"deferring remaining to retry pass")
-        final_actions.append({ "date": action['date'], "proceedings": action['proceedings'], "fee": "", "doc_url": action['doc_url'], "doc_filename": doc_filename })
+        final_actions.append(per_action)
+
+    finished_at = utc_now_iso()
+    elapsed_s = round(time.monotonic() - case_started_perf, 3)
+    # Roll up per-mode timing for quick scanning in stats
+    mode_summary = {}
+    for t in download_telemetry:
+        m = t.get("mode") or "fail"
+        if m not in mode_summary:
+            mode_summary[m] = {"count": 0, "ok": 0, "total_s": 0.0}
+        mode_summary[m]["count"] += 1
+        mode_summary[m]["ok"] += 1 if t.get("ok") else 0
+        mode_summary[m]["total_s"] += t.get("elapsed_s") or 0.0
 
     result = {
-        "metadata": { "case_number": case_num, "case_title": data['style'], "filing_date": filed_to_iso(data['actions'][0]['date']) if data['actions'] else "", "timing": { "scraped_at": utc_now_iso(), "downloaded_docs": downloaded } },
-        "actions": final_actions
+        "metadata": {
+            "case_number": case_num,
+            "case_title": data['style'],
+            "filing_date": filed_to_iso(data['actions'][0]['date']) if data['actions'] else "",
+            "empty_case": False,
+            "timing": {
+                "started_at": case_started_at,
+                "finished_at": finished_at,
+                "elapsed_seconds": elapsed_s,
+                "scraped_at": finished_at,
+                "downloaded_docs": downloaded,
+                "attempts": attempts,
+                "capped": capped,
+                "consecutive_gates_at_end": consecutive_gates,
+                "download_mode_summary": mode_summary,
+            },
+        },
+        "actions": final_actions,
     }
-    with open(case_dir / "register_of_actions.json", "w") as f: json.dump(result, f, indent=2)
+    with open(case_dir / "register_of_actions.json", "w") as f:
+        json.dump(result, f, indent=2)
     return result
 
 async def main():
-    import argparse
+    import argparse, sys
     parser = argparse.ArgumentParser()
     parser.add_argument("--year", type=int, default=2024)
     parser.add_argument("--count", type=int, default=2)
@@ -555,6 +650,9 @@ async def main():
     parser.add_argument("--start", type=int, help="Sequence number to start at (defaults to auto-resume)")
     parser.add_argument("--chrome", action="store_true",
                         help="Fall back to attaching to system Chrome via CDP (default is Camoufox)")
+    parser.add_argument("--workers", type=int, default=1,
+                        help="Spawn N parallel scraper processes (each with its own Camoufox). "
+                             "Children run serially; only the parent dispatcher uses --workers.")
     args = parser.parse_args()
 
     # --- Auto-Resume Logic ---
@@ -576,6 +674,52 @@ async def main():
         else:
             start_num = 1
             print(f"No existing data found for {args.type}-{args.year}. Starting at #1")
+
+    # --- Multi-worker dispatcher ---
+    # When --workers > 1, the current process becomes a dispatcher: it splits
+    # the case-number range into N disjoint slices and spawns N child scraper
+    # processes. Each child runs with --workers=1 and its own Camoufox
+    # instance (distinct fingerprint per launch). Per-worker logs go to
+    # ok_scraper/data/_worker_logs/.
+    if args.workers > 1:
+        if args.chrome:
+            print("WARNING: --chrome shares one debug port; running multiple --workers with "
+                  "--chrome will collide. Set --workers 1 with --chrome.")
+            return
+        log_dir = DATA_ROOT / "_worker_logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        chunk = args.count // args.workers
+        rem = args.count % args.workers
+        cursor = start_num
+        children = []
+        for i in range(args.workers):
+            sz = chunk + (1 if i < rem else 0)
+            if sz <= 0:
+                continue
+            log_path = log_dir / f"worker_{i}_{cursor}-{cursor + sz - 1}.log"
+            cmd = [
+                sys.executable, sys.argv[0],
+                "--year", str(args.year),
+                "--type", args.type,
+                "--start", str(cursor),
+                "--count", str(sz),
+            ]
+            log_f = open(log_path, "w")
+            proc = subprocess.Popen(cmd, stdout=log_f, stderr=subprocess.STDOUT)
+            children.append((i, proc, cursor, sz, log_path, log_f))
+            print(f"  worker {i}: {args.type}-{args.year}-{cursor}..{cursor + sz - 1} "
+                  f"-> pid {proc.pid}, log {log_path}")
+            cursor += sz
+        if not children:
+            print("Nothing to dispatch (count <= 0).")
+            return
+        print(f"Dispatched {len(children)} workers. Waiting for completion...")
+        for i, proc, _, _, log_path, log_f in children:
+            rc = proc.wait()
+            log_f.close()
+            print(f"  worker {i}: exit {rc}  (see {log_path})")
+        print("All workers finished.")
+        return
 
     if args.chrome:
         # CDP-attached system Chrome (debugging fallback). Cloudflare can
