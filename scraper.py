@@ -19,13 +19,62 @@ try:
 except ImportError:
     CAMOUFOX_AVAILABLE = False
 
+# Inline OCR helper (Tesseract + pdfimages). Imported here so the
+# scrape path can convert each saved PDF to text immediately and
+# discard the PDF on successful extraction (storage win ~50x).
+sys_path_ocr = str(Path(__file__).resolve().parent)
+if sys_path_ocr not in __import__("sys").path:
+    __import__("sys").path.insert(0, sys_path_ocr)
+from ocr import ocr_pdf as _ocr_pdf  # noqa: E402
+
+# Module-level toggles set by main() and read by download_pdf.
+# Default behavior: OCR every saved PDF, delete the PDF on OCR success.
+RUN_OCR = True
+KEEP_PDFS = False
+
 # --- Configuration ---
 DEBUG_PORT = 9223
 CHROME_PROFILE = Path.home() / ".ok_manual_profile"
 BASE_URL = "https://www.oscn.net/dockets"
+SEARCH_URL = f"{BASE_URL}/Results.aspx"
 CASE_URL = f"{BASE_URL}/GetCaseInformation.aspx"
 DOC_URL = f"{BASE_URL}/GetDocument.aspx"
 DATA_ROOT = Path(__file__).resolve().parent / "data"
+
+# OSCN's Results.aspx caps responses at ~500 rows. If a single-day search
+# comes back at or above this watermark we dump the raw HTML so we know
+# the cap was real (vs. saturated by archived noise that filters out).
+SEARCH_RESULT_WATERMARK = 480
+
+# Default civil + criminal scope: civil-judgment, civil, criminal felony,
+# criminal misdemeanor. Adjust per --type.
+DEFAULT_TYPES = ("CJ", "CV", "CF", "CM")
+
+# Case-type prefix → OSCN's `dcct` (Docket Case-Class Type) numeric ID.
+# Source: the dropdown on OSCN's search form (`<select id="dcct">`).
+# When a `dcct` is supplied to Results.aspx, the response is filtered
+# server-side, which sidesteps the 500-row response cap that would
+# otherwise saturate on busy multi-type Tulsa days.
+TYPE_TO_DCCT = {
+    "CJ": "2",    # Civil relief more than $10,000
+    "CV": "1",    # Civil relief less than $10,000
+    "CF": "31",   # Criminal Felony
+    "CM": "32",   # Criminal Misdemeanor
+    "CS": "33",   # Criminal Miscellaneous
+    "PO": "34",   # Protective Order
+    "PB": "7",    # Probate
+    "SC": "26",   # Small Claims
+    "TR": "18",   # Traffic
+    "YO": "82",   # Youthful Offender
+    "FD": "3",    # Family and Domestic
+    "DM": "3",    # Family and Domestic (alt prefix)
+    "PA": "5",    # Paternity
+    "MI": "22",   # Civil Misc.
+    "BC": "61",   # Civil Administrative
+    "TS": "10",   # Trusts
+    "TX": "43",   # Tax Liens
+    "WC": "30",   # Writ (Habeas)
+}
 
 # --- Globals ---
 DOWNLOAD_SEMAPHORE = asyncio.Semaphore(1)
@@ -68,6 +117,314 @@ def filed_to_iso(filed_str: str) -> str:
         try: return datetime.strptime(s, fmt).date().isoformat()
         except ValueError: continue
     return ""
+
+
+def iso_to_oscn(iso_or_date) -> str:
+    """Convert a YYYY-MM-DD ISO string (or date object) to OSCN's MM-DD-YYYY.
+
+    Note: OSCN's Results.aspx accepts dates as `FiledDateL` / `FiledDateH`
+    in MM-DD-YYYY (dash) format — NOT MM/DD/YYYY (slash). Slashes are
+    silently ignored and the search falls back to "all recent" — which
+    is what tripped us up on early runs (returning 500 mixed-type rows
+    including 1989/1999/etc archived cases).
+    """
+    if hasattr(iso_or_date, "strftime"):
+        return iso_or_date.strftime("%m-%d-%Y")
+    return datetime.strptime(iso_or_date, "%Y-%m-%d").strftime("%m-%d-%Y")
+
+
+def weekday_dates(start_iso: str, end_iso: str) -> list[date]:
+    start = datetime.strptime(start_iso, "%Y-%m-%d").date()
+    end = datetime.strptime(end_iso, "%Y-%m-%d").date()
+    out = []
+    cur = start
+    while cur <= end:
+        if cur.weekday() < 5:  # Mon-Fri
+            out.append(cur)
+        cur += timedelta(days=1)
+    return out
+
+
+def split_dates_into_chunks(dates: list[date], n: int) -> list[list[date]]:
+    """Split a list of dates into n contiguous chunks, balanced for size."""
+    if n <= 1 or not dates:
+        return [dates] if dates else []
+    chunk = len(dates) // n
+    rem = len(dates) % n
+    out, cursor = [], 0
+    for i in range(n):
+        sz = chunk + (1 if i < rem else 0)
+        if sz <= 0:
+            continue
+        out.append(dates[cursor:cursor + sz])
+        cursor += sz
+    return out
+
+
+def day_dir(filing_iso: str) -> Path:
+    return DATA_ROOT / filing_iso
+
+
+def case_dir_for(filing_iso: str, case_num: str) -> Path:
+    return day_dir(filing_iso) / case_num
+
+
+def case_is_complete(filing_iso: str, case_num: str) -> bool:
+    return (case_dir_for(filing_iso, case_num) / "register_of_actions.json").exists()
+
+
+def update_day_summary(filing_iso: str, **fields) -> dict:
+    """Read-modify-write for data/<filing_iso>/day_summary.json."""
+    d = day_dir(filing_iso)
+    d.mkdir(parents=True, exist_ok=True)
+    path = d / "day_summary.json"
+    summary = {}
+    if path.exists():
+        try:
+            summary = json.loads(path.read_text())
+        except Exception:
+            summary = {}
+    summary.update(fields)
+    summary.setdefault("filing_date", filing_iso)
+    summary["updated_at"] = utc_now_iso()
+    path.write_text(json.dumps(summary, indent=2))
+    return summary
+
+
+def write_failed_cases(filing_iso: str, failed: list[dict]) -> None:
+    path = day_dir(filing_iso) / "failed_cases.json"
+    if not failed:
+        if path.exists():
+            path.unlink()
+        return
+    path.write_text(json.dumps(failed, indent=2))
+
+
+def load_failed_cases(filing_iso: str) -> list[dict]:
+    path = day_dir(filing_iso) / "failed_cases.json"
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text())
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def day_is_complete(filing_iso: str) -> bool:
+    """A day is complete if day_summary exists and reports no failures and
+    scraped_cases >= total_cases. Used by auto-resume."""
+    path = day_dir(filing_iso) / "day_summary.json"
+    if not path.exists():
+        return False
+    try:
+        s = json.loads(path.read_text())
+    except Exception:
+        return False
+    total = int(s.get("total_cases", 0) or 0)
+    scraped = int(s.get("scraped_cases", 0) or 0)
+    failed = int(s.get("failed_cases", 0) or 0)
+    return total > 0 and scraped >= total and failed == 0
+
+
+def find_resume_dates(start_iso: str, end_iso: str) -> list[date]:
+    """Return weekdays in [start, end] that aren't yet `day_is_complete`."""
+    return [d for d in weekday_dates(start_iso, end_iso) if not day_is_complete(d.isoformat())]
+
+
+# --- Party / attorney metadata helpers ---
+
+
+def _normalize_party_key(name: str) -> str:
+    """Normalize a party name for fuzzy comparison between the parties list
+    and the attorney's represented_parties cell. OSCN inserts non-breaking
+    spaces and trailing commas inconsistently."""
+    if not name:
+        return ""
+    s = name.replace(" ", " ")
+    s = re.sub(r"\s+", " ", s).strip()
+    s = s.strip(",.").strip()
+    return s.upper()
+
+
+def annotate_pro_se(parties: list[dict], attorneys: list[dict]) -> list[dict]:
+    """Return a copy of parties with `pro_se: bool` set per party.
+
+    A party is marked represented if any attorney's represented_parties
+    contains a substring match (in either direction) against the party name.
+    Substring containment is necessary because OSCN abbreviates: e.g.
+    case style has "RICHARDSON, JAMARIO DAMONT" but attorney cell may say
+    "RICHARDSON, JAMARIO" or just "RICHARDSON".
+    """
+    represented_keys: list[str] = []
+    for atty in attorneys or []:
+        for rep in (atty.get("represented_parties") or []):
+            k = _normalize_party_key(rep)
+            if k:
+                represented_keys.append(k)
+
+    out = []
+    for p in parties or []:
+        key = _normalize_party_key(p.get("name", ""))
+        is_rep = False
+        if key:
+            for rep in represented_keys:
+                if rep and (rep in key or key in rep):
+                    is_rep = True
+                    break
+        out.append({**p, "pro_se": (not is_rep) if key else False})
+    return out
+
+
+def representation_rollups(parties_with_pro_se: list[dict], attorneys: list[dict]) -> dict:
+    """Cheap rollups for stratification queries downstream."""
+    n_parties = len(parties_with_pro_se)
+    pro_se_count = sum(1 for p in parties_with_pro_se if p.get("pro_se"))
+    return {
+        "n_parties": n_parties,
+        "n_attorneys": len(attorneys or []),
+        "n_pro_se_parties": pro_se_count,
+        "any_pro_se": pro_se_count > 0,
+        "all_represented": (n_parties > 0 and pro_se_count == 0),
+    }
+
+
+# --- Search-results parser ---
+
+SEARCH_PARSE_JS = """
+() => {
+    const rows = Array.from(document.querySelectorAll('tr.resultTableRow'));
+    const out = [];
+    for (const row of rows) {
+        const numA = row.querySelector('td.result_casenumber a');
+        if (!numA) continue;
+        const caseNum = numA.innerText.trim();
+        if (!caseNum) continue;
+        const styleEl = row.querySelector('td.result_shortstyle');
+        const style = styleEl ? styleEl.innerText.replace(/\\s+/g, ' ').trim() : '';
+        const dateEl = row.querySelector('td.result_datefiled');
+        const dateText = dateEl ? dateEl.innerText.trim() : '';
+        out.push({
+            case_number: caseNum,
+            url: numA.href,
+            style: style,
+            filed_text: dateText,
+        });
+    }
+    return out;
+}
+"""
+
+
+def search_url(county: str, dcct: str, oscn_date_low: str,
+               oscn_date_high: str | None = None) -> str:
+    """Build a Results.aspx URL using OSCN's actual parameter names.
+
+    Verified URL shape (per OSCN search form):
+        Results.aspx?db=tulsa&FiledDateL=MM-DD-YYYY&FiledDateH=MM-DD-YYYY&dcct=2
+
+    Use the `dcct` numeric ID (from `<select id="dcct">` on OSCN's search
+    form) for server-side type filtering — see TYPE_TO_DCCT. Passing an
+    empty `dcct` means "All Case Types".
+
+    Date format must be MM-DD-YYYY (dashes); slashes are silently
+    ignored and the search falls back to "all recent". If
+    `oscn_date_high` is omitted we use a single-day window (low == high).
+    """
+    if oscn_date_high is None:
+        oscn_date_high = oscn_date_low
+    qs = {
+        "db": county,
+        "FiledDateL": oscn_date_low,
+        "FiledDateH": oscn_date_high,
+    }
+    if dcct:
+        qs["dcct"] = dcct
+    return f"{SEARCH_URL}?{urlencode(qs)}"
+
+
+async def search_one_day(page, county: str, types: list[str], filing_iso: str) -> tuple[list[dict], dict[str, int]]:
+    """One Results.aspx search per type (server-filtered via `dcct`).
+
+    OSCN's `dcct` parameter selects a single case-class on the server,
+    so each per-type search has its own 500-row response budget — much
+    higher real coverage than a single all-types search would give.
+
+    Returns (filtered_cases, raw_count_by_type) where raw_count_by_type
+    maps each requested type to the number of raw rows OSCN returned
+    for that type's search (used for watermark monitoring).
+    """
+    oscn_date = iso_to_oscn(filing_iso)
+    seen: set[str] = set()
+    out: list[dict] = []
+    raw_by_type: dict[str, int] = {}
+
+    for case_type in types:
+        case_type_u = case_type.upper()
+        dcct = TYPE_TO_DCCT.get(case_type_u)
+        if dcct is None:
+            print(f"  unknown case type {case_type_u!r}; no dcct mapping. Skipping.")
+            continue
+
+        url = search_url(county, dcct, oscn_date)
+        try:
+            await page.goto(url, wait_until="commit", timeout=60_000)
+        except Exception:
+            pass
+
+        await wait_for_human_solve(page, target_text="Case Search Results")
+
+        try:
+            await page.wait_for_selector("tr.resultTableRow, table.resultsTable", timeout=8_000)
+        except Exception:
+            # Zero-result day for this type is legitimate.
+            pass
+
+        raw = await page.evaluate(SEARCH_PARSE_JS)
+        raw_count = len(raw)
+        raw_by_type[case_type_u] = raw_count
+
+        if raw_count >= SEARCH_RESULT_WATERMARK:
+            dump_dir = day_dir(filing_iso) / "_search_dumps"
+            dump_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                dump_path = dump_dir / f"{case_type_u}.html"
+                dump_path.write_text(await page.content())
+                print(f"  WATERMARK: {filing_iso} {case_type_u} returned {raw_count} rows "
+                      f"(>= {SEARCH_RESULT_WATERMARK}); raw HTML dumped to {dump_path}")
+            except Exception as e:
+                print(f"  WATERMARK dump failed for {filing_iso} {case_type_u}: {e}")
+
+        # Client-side prefix verification: dcct should already isolate
+        # the right case-class, but defense-in-depth catches any
+        # mis-mapping (e.g., dcct=33 returning multiple criminal-misc
+        # subtypes).
+        kept_for_type = 0
+        for row in raw:
+            cn = row["case_number"].strip().upper()
+            if not cn or cn in seen:
+                continue
+            prefix = cn.split("-")[0]
+            if prefix != case_type_u:
+                # Server returned a row whose prefix doesn't match. Skip.
+                continue
+            style = (row.get("style") or "").lower()
+            if "no record" in style:
+                continue
+            seen.add(cn)
+            out.append({
+                "case_number": cn,
+                "case_type": case_type_u,
+                "url": row["url"],
+                "style": row.get("style", ""),
+                "search_filed_text": row.get("filed_text", ""),
+                "county": county,
+            })
+            kept_for_type += 1
+        print(f"  {case_type_u} (dcct={dcct}): raw={raw_count}, kept={kept_for_type}")
+
+    return out, raw_by_type
+
 
 def launch_chrome():
     """Launch a real Chrome instance with remote debugging."""
@@ -304,9 +661,10 @@ async def wait_for_human_solve(
             submitted_at = 0
             submit_reload_count = 0
             content_lower = content.lower()
-            on_oscn_doc_path = (
+            on_oscn_known_path = (
                 "getcaseinformation.aspx" in url_lower
                 or "getdocument.aspx" in url_lower
+                or "results.aspx" in url_lower
             )
             no_turnstile_marker = (
                 "turnstile" not in content_lower
@@ -317,13 +675,17 @@ async def wait_for_human_solve(
                 target_text in content,
                 "docketlist" in content_lower,
                 "Case Information" in content,
+                # Search-results-page structural markers (class names in
+                # the HTML). Robust against title/text variations.
+                "resulttablerow" in content_lower,
+                "result_casenumber" in content_lower,
                 "%PDF-" in content[:100],
                 "getdocument.aspx" in url_lower and "turnstile" not in content_lower,
-                # Fallback: we navigated to an OSCN doc URL, the page
+                # Fallback: we navigated to a known OSCN endpoint, the page
                 # rendered a non-trivial body, and no challenge markers
-                # remain. This catches cases where a recognized success
-                # text hasn't yet painted (slow load) or layout differs.
-                on_oscn_doc_path and no_turnstile_marker and len(content) > 5000,
+                # remain. Catches search results, case info, and document
+                # endpoints with layout variations we haven't seen.
+                on_oscn_known_path and no_turnstile_marker and len(content) > 5000,
             ]
 
             if any(success_indicators):
@@ -359,13 +721,75 @@ async def download_pdf(page, action, dest_path):
     """
     started = time.monotonic()
 
-    def _result(ok, mode=None, error=None):
-        return {
+    def _result(ok, mode=None, error=None, ocr=None):
+        out = {
             "ok": ok,
             "mode": mode,
             "elapsed_s": round(time.monotonic() - started, 3),
             "error": error,
         }
+        if ocr is not None:
+            out.update(ocr)
+        return out
+
+    async def _run_ocr_and_finalize() -> dict:
+        """OCR a freshly saved PDF, optionally drop the PDF on success.
+
+        Returns a dict ready to merge into the download result. Fields:
+            text_filename, text_chars, text_pages, text_letter_frac,
+            text_extraction_status, text_extraction_elapsed_s, ocr_engine,
+            text_extraction_error (only on failure).
+        Mutates dest_path (writes .txt next to it; deletes .pdf on
+        successful OCR unless KEEP_PDFS is True).
+        """
+        if not RUN_OCR:
+            return {
+                "text_extraction_status": "skipped",
+                "text_filename": None,
+                "doc_filename_kept": dest_path.name,
+            }
+        try:
+            # Tesseract is CPU-bound and synchronous; offload to a thread
+            # so the Playwright event loop stays responsive.
+            ocr_res = await asyncio.to_thread(_ocr_pdf, dest_path)
+        except Exception as e:
+            return {
+                "text_extraction_status": "error",
+                "text_extraction_error": f"thread error: {str(e)[:200]}",
+                "text_extraction_elapsed_s": 0.0,
+                "doc_filename_kept": dest_path.name,
+            }
+
+        out = {
+            "text_chars": ocr_res.get("chars", 0),
+            "text_pages": ocr_res.get("pages", 0),
+            "text_letter_frac": ocr_res.get("letter_frac", 0.0),
+            "text_extraction_status": ocr_res.get("status", "error"),
+            "text_extraction_elapsed_s": ocr_res.get("elapsed_s", 0.0),
+            "ocr_engine": ocr_res.get("engine", "unknown"),
+            "text_filename": None,
+            "doc_filename_kept": dest_path.name,
+        }
+        if ocr_res.get("error"):
+            out["text_extraction_error"] = str(ocr_res["error"])[:200]
+
+        text = ocr_res.get("text") or ""
+        if text:
+            txt_path = dest_path.with_suffix(".txt")
+            try:
+                txt_path.write_text(text)
+                out["text_filename"] = txt_path.name
+            except Exception as e:
+                out["text_extraction_error"] = f"write failed: {str(e)[:120]}"
+
+        if out["text_extraction_status"] == "ok" and not KEEP_PDFS:
+            try:
+                dest_path.unlink()
+                out["doc_filename_kept"] = None
+            except Exception:
+                pass
+
+        return out
 
     async with DOWNLOAD_SEMAPHORE:
         await asyncio.sleep(random.uniform(1.0, 3.0))
@@ -495,9 +919,17 @@ async def download_pdf(page, action, dest_path):
             print(f"      {dest_path.name}: save failed: {e}")
             return _result(False, mode="click", error=f"save_failed: {str(e)[:80]}")
 
-async def scrape_case_detail(context, page, case_data):
-    """Scrape case and output SF-compatible register_of_actions.json."""
-    case_num = case_data["case_num"]
+async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""):
+    """Scrape one case's info page and write data/<filing_iso>/<case_num>/register_of_actions.json.
+
+    `hint_filing_iso` is the search day we found this case on; used as a
+    fallback bucket if the page itself doesn't surface a usable date.
+    The case page's first docket entry is the preferred source of truth;
+    if both are unavailable we fall back to the year embedded in the
+    case number (e.g. 2024 from CJ-2024-1234).
+    """
+    case_num = case_data.get("case_num") or case_data.get("case_number")
+    case_type = case_num.split("-")[0].upper() if case_num and "-" in case_num else ""
     case_started_at = utc_now_iso()
     case_started_perf = time.monotonic()
     print(f"  Scraping {case_num}...")
@@ -510,16 +942,50 @@ async def scrape_case_detail(context, page, case_data):
     # wait_for_human_solve declares the page cleared when it sees
     # "Case Information" in the document, but that phrase appears in a
     # header/breadcrumb that paints BEFORE table.docketlist renders.
-    # Without an explicit wait, we sometimes evaluate the DOM mid-render
-    # and the parser sees no docket table -> empty actions -> wrongly
-    # short-circuited as an empty case. Wait for at least one of the
-    # case-page structures before parsing.
+    # We need TWO waits to avoid load-race short-circuits:
+    #   1) table.caseStyle — header structure (fast).
+    #   2) tr.docketRow.primary-entry OR "No Record." text — confirms
+    #      the docket table is either populated OR genuinely empty.
+    # Without (2) a busy case can render its caseStyle but have an
+    # un-populated docketlist when we evaluate, producing a false
+    # empty_docket marker.
     try:
-        await page.wait_for_selector("table.docketlist, table.caseStyle", timeout=8000)
+        await page.wait_for_selector("table.caseStyle", timeout=8000)
     except Exception:
+        pass
+    try:
+        await page.wait_for_selector("tr.docketRow.primary-entry", timeout=10000)
+    except Exception:
+        # Either a genuinely empty / "No Record" case (caseStyle
+        # present, docket section blank) or a load that's too slow.
+        # The parser below will distinguish: empty_docket short-circuit
+        # only fires if caseStyle is present but actions is empty.
         pass
 
     data = await page.evaluate("""() => {
+        // Find an h2.section by leading text (case-insensitive) and return
+        // the next <table> sibling. Used to locate per-section tables
+        // (Attorneys, Issues, Counts) without relying on table IDs that
+        // may differ between case types.
+        function tableAfterSection(headingText) {
+            const h2s = Array.from(document.querySelectorAll('h2.section'));
+            const target = headingText.toLowerCase();
+            for (const h of h2s) {
+                if (!h.innerText) continue;
+                if (h.innerText.trim().toLowerCase().startsWith(target)) {
+                    let sib = h.nextElementSibling;
+                    while (sib && sib.tagName !== 'TABLE') sib = sib.nextElementSibling;
+                    return sib;
+                }
+            }
+            return null;
+        }
+
+        function clean(s) {
+            return (s || '').replace(/\\u00a0/g, ' ').replace(/\\s+/g, ' ').trim();
+        }
+
+        // ---- Existing fields ----
         const dock = document.querySelector('table.docketlist');
         const styleTbl = document.querySelector('table.caseStyle');
         const docket_table_present = dock !== null;
@@ -541,16 +1007,95 @@ async def scrape_case_detail(context, page, case_data):
                 actions.push({ date, code, proceedings: desc, doc_url: (pdfLink || genericLink) ? (pdfLink || genericLink).href : null });
             });
         }
-        let judge = '', style = '';
+        let judge = '', style = '', filed = '', closed = '';
         if (styleTbl) {
             const tds = styleTbl.querySelectorAll('td');
             if (tds.length >= 2) {
-                const m = tds[1].innerText.match(/Judge:\\s*([^\\n]+)/i);
-                judge = m ? m[1].trim() : '';
+                const meta = tds[1].innerText || '';
+                const mJ = meta.match(/Judge:\\s*([^\\n]+)/i);
+                const mF = meta.match(/Filed:\\s*([0-9\\/\\-]+)/i);
+                const mC = meta.match(/Closed:\\s*([0-9\\/\\-]+)/i);
+                judge = mJ ? mJ[1].trim() : '';
+                filed = mF ? mF[1].trim() : '';
+                closed = mC ? mC[1].trim() : '';
             }
             style = styleTbl.innerText.split('\\n')[0].trim();
         }
-        return { actions, judge, style, docket_table_present, case_style_present };
+
+        // ---- Parties ----
+        // Each party rendered as <span class="parties_party"> containing
+        // <span class="parties_partyname">NAME</span> and
+        // <span class="parties_type">Plaintiff/Defendant/etc</span>.
+        const parties = Array.from(document.querySelectorAll('span.parties_party')).map(p => {
+            const nm = p.querySelector('.parties_partyname');
+            const tp = p.querySelector('.parties_type');
+            return {
+                name: nm ? clean(nm.innerText) : '',
+                type: tp ? clean(tp.innerText) : '',
+            };
+        }).filter(p => p.name);
+
+        // ---- Attorneys ----
+        // Section header is <h2 class="section attorneys">; the next table
+        // has a 2-column layout: left cell is "NAME(Bar #N)<br>...address...",
+        // right cell is comma-separated represented parties.
+        const attorneys = [];
+        const attyTable = tableAfterSection('Attorney');
+        if (attyTable) {
+            const rows = Array.from(attyTable.querySelectorAll('tbody tr'));
+            for (const tr of rows) {
+                const cells = tr.querySelectorAll('td');
+                if (cells.length < 2) continue;
+                const left = cells[0].innerText || '';
+                const right = cells[1].innerText || '';
+                const lines = left.split(/\\r?\\n+/).map(s => clean(s)).filter(Boolean);
+                if (lines.length === 0) continue;
+                const barMatch = left.match(/\\(Bar\\s*#\\s*(\\d+)\\)/i);
+                const name = (lines[0] || '').replace(/\\(Bar\\s*#\\s*\\d+\\)/i, '').trim().replace(/[,\\s]+$/, '');
+                // Address = the remaining lines (skip the firm-display line that's
+                // often a duplicate of the name without (Bar #...))
+                const address_lines = lines.slice(1).filter(l => l && l !== name);
+                const reps = right.split(/[,\\n]+/).map(s => clean(s)).filter(Boolean);
+                attorneys.push({
+                    name: name,
+                    bar_number: barMatch ? barMatch[1] : null,
+                    address: address_lines.join(', '),
+                    represented_parties: reps,
+                });
+            }
+        }
+
+        // ---- Issues (civil) / Counts (criminal) ----
+        // Both render under the same h2.section.issues / .counts pattern.
+        // We do a defensive cell-capture so downstream analysis can refine
+        // without us needing per-type parsers in here.
+        function extractRowList(headingText) {
+            const tbl = tableAfterSection(headingText);
+            if (!tbl) return [];
+            const rows = Array.from(tbl.querySelectorAll('tr.docketRow, tr.primary-entry, tr'));
+            const out = [];
+            for (const tr of rows) {
+                const cells = Array.from(tr.querySelectorAll('td')).map(td => clean(td.innerText));
+                // Skip header rows or rows with nothing useful
+                if (cells.every(c => !c)) continue;
+                if (tr.querySelector('th')) continue;
+                // Issue/count number from .count_issue if present
+                const numEl = tr.querySelector('.count_issue');
+                const number = numEl ? clean(numEl.innerText).replace(/\\s+/g, '') : '';
+                const partyEl = tr.querySelector('.partyname, .countpartyname, .parties_partyname');
+                const party = partyEl ? clean(partyEl.innerText) : '';
+                out.push({ number, party, cells });
+            }
+            return out;
+        }
+        const issues = extractRowList('Issues');
+        const counts = extractRowList('Counts');
+
+        return {
+            actions, judge, style, filed, closed,
+            docket_table_present, case_style_present,
+            parties, attorneys, issues, counts,
+        };
     }""")
 
     # Sanity check: if neither structural marker rendered, the page
@@ -562,8 +1107,33 @@ async def scrape_case_detail(context, page, case_data):
         print(f"  {case_num}: case-info page never rendered; not writing register (will retry next run)")
         return None
 
-    case_dir = DATA_ROOT / case_num.replace('-', '_')
+    # Derive the filing_iso to bucket this case under. Priority:
+    #   1. caseStyle's "Filed: MM/DD/YYYY" — the page's own canonical
+    #      filing date. Use this ALWAYS when available; the first
+    #      docket-action date is unreliable for older cases that have
+    #      pre-1990 archived events.
+    #   2. The search-day hint (the day we found this case on).
+    #   3. First docket-action date as a last resort for cases whose
+    #      header parse was incomplete.
+    #   4. The year embedded in the case number.
+    parsed_filed_iso = filed_to_iso(data.get('filed', '') or '')
+    filing_iso = parsed_filed_iso or hint_filing_iso or ""
+    if not filing_iso and data['actions']:
+        filing_iso = filed_to_iso(data['actions'][0]['date'])
+    if not filing_iso:
+        m = re.search(r"\b(\d{4})\b", case_num or "")
+        filing_iso = f"{m.group(1)}-01-01" if m else "0000-00-00"
+
+    case_dir = case_dir_for(filing_iso, case_num)
     case_dir.mkdir(parents=True, exist_ok=True)
+
+    # Party / attorney metadata is captured even on empty cases — a
+    # "No Record." sealed case still has a parties block in some layouts,
+    # and the rollups are cheap to compute either way.
+    raw_parties = data.get("parties") or []
+    raw_attorneys = data.get("attorneys") or []
+    parties_annotated = annotate_pro_se(raw_parties, raw_attorneys)
+    rollups = representation_rollups(parties_annotated, raw_attorneys)
 
     # Short-circuit: a real empty/no-record case shows the case-style
     # block (so we know the page rendered) but no rows in the docket
@@ -581,10 +1151,17 @@ async def scrape_case_detail(context, page, case_data):
         result = {
             "metadata": {
                 "case_number": case_num,
+                "case_type": case_type,
                 "case_title": data.get('style', ''),
-                "filing_date": "",
+                "filing_date": filing_iso,
+                "county": case_data.get("county", ""),
                 "empty_case": True,
                 "empty_reason": reason,
+                "parties": parties_annotated,
+                "attorneys": raw_attorneys,
+                "issues": data.get("issues") or [],
+                "counts": data.get("counts") or [],
+                **rollups,
                 "timing": {
                     "started_at": case_started_at,
                     "finished_at": finished_at,
@@ -667,9 +1244,19 @@ async def scrape_case_detail(context, page, case_data):
     result = {
         "metadata": {
             "case_number": case_num,
+            "case_type": case_type,
             "case_title": data['style'],
-            "filing_date": filed_to_iso(data['actions'][0]['date']) if data['actions'] else "",
+            "filing_date": filing_iso,
+            "judge": data.get('judge', ''),
+            "filed": data.get('filed', ''),
+            "closed": data.get('closed', ''),
+            "county": case_data.get("county", ""),
             "empty_case": False,
+            "parties": parties_annotated,
+            "attorneys": raw_attorneys,
+            "issues": data.get("issues") or [],
+            "counts": data.get("counts") or [],
+            **rollups,
             "timing": {
                 "started_at": case_started_at,
                 "finished_at": finished_at,
@@ -688,46 +1275,173 @@ async def scrape_case_detail(context, page, case_data):
         json.dump(result, f, indent=2)
     return result
 
+async def scrape_one_day(context, page, county: str, types: list[str],
+                         filing_iso: str) -> None:
+    """Search OSCN for one filing day across all requested types and scrape each case.
+
+    Writes day_summary.json + failed_cases.json under data/<filing_iso>/.
+    Per-case scrape goes through scrape_case_detail which buckets each
+    case under its OWN page-asserted filing date — this means a case
+    discovered by the search but actually filed on a different date
+    will land in that other day's folder (and is reported here as a
+    cross-day case).
+    """
+    started_at = utc_now_iso()
+    started_perf = time.monotonic()
+    print(f"\nProcessing {filing_iso}  county={county}  types={','.join(types)}")
+
+    # --- Search phase ---
+    # OSCN's `dcct` param filters server-side, so we issue one search
+    # per type and combine. Each per-type search has its own 500-row
+    # response budget, sidestepping the cap that an all-types search
+    # would saturate on busy Tulsa days.
+    manifest: list[dict] = []
+    raw_by_type: dict[str, int] = {}
+    try:
+        manifest, raw_by_type = await search_one_day(page, county, types, filing_iso)
+    except Exception as e:
+        err_text = str(e)
+        print(f"  search failed: {err_text[:200]}")
+        if err_text == "IP_RESTRICTED":
+            raise
+
+    per_type_kept = {t.upper(): sum(1 for c in manifest if c["case_type"] == t.upper()) for t in types}
+    total_raw = sum(raw_by_type.values())
+    print(f"  total: raw={total_raw}, kept={len(manifest)}  per_type_kept={per_type_kept}")
+
+    update_day_summary(
+        filing_iso,
+        total_cases=len(manifest),
+        raw_by_type=raw_by_type,
+        per_type_kept=per_type_kept,
+    )
+
+    if not manifest:
+        update_day_summary(
+            filing_iso,
+            scraped_cases=0,
+            failed_cases=0,
+            run_metadata={
+                "started_at": started_at,
+                "finished_at": utc_now_iso(),
+                "elapsed_seconds": round(time.monotonic() - started_perf, 2),
+                "no_cases_found": True,
+                "county": county,
+                "case_types": types,
+            },
+        )
+        print(f"  {filing_iso}: no cases after filter; recorded zero-case day")
+        return
+
+    # --- Scrape phase ---
+    pending = [c for c in manifest if not case_is_complete(filing_iso, c["case_number"])]
+    print(f"  scraping {len(pending)} of {len(manifest)} cases (rest already complete)")
+
+    failures: list[dict] = []
+    for case in pending:
+        case_data = {
+            "case_num": case["case_number"],
+            "url": case["url"],
+            "county": county,
+        }
+        try:
+            await scrape_case_detail(context, page, case_data, hint_filing_iso=filing_iso)
+        except Exception as e:
+            err_text = str(e)
+            print(f"  {case['case_number']}: {err_text[:200]}")
+            failures.append({**case, "error": err_text[:300]})
+            if err_text == "IP_RESTRICTED":
+                # Persist what we've got and re-raise so the outer loop bails.
+                write_failed_cases(filing_iso, failures)
+                raise
+
+    write_failed_cases(filing_iso, failures)
+
+    # Cross-day audit: count cases whose actual filing_date matched the
+    # searched day vs. those that were bucketed elsewhere.
+    in_day = sum(1 for c in manifest if case_is_complete(filing_iso, c["case_number"]))
+    cross_day = len(manifest) - in_day - len(failures)
+
+    update_day_summary(
+        filing_iso,
+        total_cases=len(manifest),
+        scraped_cases=in_day,
+        cross_day_cases=cross_day,
+        failed_cases=len(failures),
+        run_metadata={
+            "started_at": started_at,
+            "finished_at": utc_now_iso(),
+            "elapsed_seconds": round(time.monotonic() - started_perf, 2),
+            "county": county,
+            "case_types": types,
+        },
+    )
+    if cross_day:
+        print(f"  note: {cross_day} cases had Filed dates outside {filing_iso}; "
+              f"written to their actual filing-day folders")
+
+
+async def run_scraper_loop(args, context, page, dates: list[date]):
+    """Iterate the assigned weekdays and scrape each."""
+    types = [t.strip().upper() for t in args.type.split(",") if t.strip()]
+    for d in dates:
+        iso = d.isoformat()
+        if day_is_complete(iso):
+            print(f"  {iso}: already complete, skipping (use --force to re-scrape)")
+            continue
+        try:
+            await scrape_one_day(context, page, args.county, types, iso)
+        except Exception as e:
+            if str(e) == "IP_RESTRICTED":
+                print("Stopping run: IP needs to clear before resuming.")
+                return
+            print(f"  {iso}: aborted: {str(e)[:200]}")
+
+
 async def main():
     import argparse, sys
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--year", type=int, default=2024)
-    parser.add_argument("--count", type=int, default=2)
-    parser.add_argument("--type", default="CJ")
-    parser.add_argument("--start", type=int, help="Sequence number to start at (defaults to auto-resume)")
+    parser = argparse.ArgumentParser(description=
+        "OSCN docket scraper. Iterates weekdays in [--start-date, --end-date], "
+        "searches each by case-type, and saves per-case data under "
+        "data/YYYY-MM-DD/<CASE-NUMBER>/.")
+    parser.add_argument("--start-date", required=True,
+                        help="Inclusive filing-date start (YYYY-MM-DD). Weekdays only.")
+    parser.add_argument("--end-date", required=True,
+                        help="Inclusive filing-date end (YYYY-MM-DD).")
+    parser.add_argument("--county", default="tulsa",
+                        choices=("tulsa", "oklahoma"),
+                        help="OSCN db parameter (county).")
+    parser.add_argument("--type", default=",".join(DEFAULT_TYPES),
+                        help="Comma-separated case-type prefixes to scrape per day, e.g. CJ,CV,CF,CM.")
     parser.add_argument("--chrome", action="store_true",
-                        help="Fall back to attaching to system Chrome via CDP (default is Camoufox)")
+                        help="Fall back to attaching to system Chrome via CDP (default: Camoufox).")
     parser.add_argument("--workers", type=int, default=1,
                         help="Spawn N parallel scraper processes (each with its own Camoufox). "
-                             "Children run serially; only the parent dispatcher uses --workers.")
+                             "Each child gets a contiguous slice of the date range.")
+    parser.add_argument("--force", action="store_true",
+                        help="Ignore day_is_complete; re-scrape even completed days.")
     args = parser.parse_args()
 
-    # --- Auto-Resume Logic ---
-    start_num = args.start
-    if start_num is None:
-        print(f"Checking existing data in {DATA_ROOT} for auto-resume...")
-        existing_nums = []
-        prefix = f"{args.type}_{args.year}_"
-        if DATA_ROOT.exists():
-            for item in DATA_ROOT.iterdir():
-                if item.is_dir() and item.name.startswith(prefix):
-                    try:
-                        num = int(item.name.replace(prefix, ""))
-                        existing_nums.append(num)
-                    except ValueError: continue
-        if existing_nums:
-            start_num = max(existing_nums) + 1
-            print(f"Auto-resume: Found {len(existing_nums)} cases. Starting at #{start_num}")
-        else:
-            start_num = 1
-            print(f"No existing data found for {args.type}-{args.year}. Starting at #1")
+    # Resolve the weekday set
+    all_weekdays = weekday_dates(args.start_date, args.end_date)
+    if not all_weekdays:
+        print(f"No weekdays in [{args.start_date}, {args.end_date}]; nothing to do.")
+        return
+
+    if args.force:
+        dates_to_scrape = all_weekdays
+    else:
+        dates_to_scrape = find_resume_dates(args.start_date, args.end_date)
+        skipped = len(all_weekdays) - len(dates_to_scrape)
+        if skipped:
+            print(f"Auto-resume: {skipped} of {len(all_weekdays)} weekdays already complete; "
+                  f"will scrape {len(dates_to_scrape)} remaining")
+
+    if not dates_to_scrape:
+        print("Nothing to do (all requested weekdays are already complete; pass --force to override).")
+        return
 
     # --- Multi-worker dispatcher ---
-    # When --workers > 1, the current process becomes a dispatcher: it splits
-    # the case-number range into N disjoint slices and spawns N child scraper
-    # processes. Each child runs with --workers=1 and its own Camoufox
-    # instance (distinct fingerprint per launch). Per-worker logs go to
-    # ok_scraper/data/_worker_logs/.
     if args.workers > 1:
         if args.chrome:
             print("WARNING: --chrome shares one debug port; running multiple --workers with "
@@ -735,43 +1449,42 @@ async def main():
             return
         log_dir = DATA_ROOT / "_worker_logs"
         log_dir.mkdir(parents=True, exist_ok=True)
-        chunk = args.count // args.workers
-        rem = args.count % args.workers
-        cursor = start_num
+        chunks = split_dates_into_chunks(dates_to_scrape, args.workers)
         children = []
-        for i in range(args.workers):
-            sz = chunk + (1 if i < rem else 0)
-            if sz <= 0:
+        for i, chunk in enumerate(chunks):
+            if not chunk:
                 continue
-            log_path = log_dir / f"worker_{i}_{cursor}-{cursor + sz - 1}.log"
+            chunk_start = chunk[0].isoformat()
+            chunk_end = chunk[-1].isoformat()
+            log_path = log_dir / f"worker_{i}_{chunk_start}_to_{chunk_end}.log"
             cmd = [
-                sys.executable, "-u",  # unbuffered stdout so logs flush in real time
+                sys.executable, "-u",
                 sys.argv[0],
-                "--year", str(args.year),
+                "--start-date", chunk_start,
+                "--end-date", chunk_end,
+                "--county", args.county,
                 "--type", args.type,
-                "--start", str(cursor),
-                "--count", str(sz),
             ]
+            if args.force:
+                cmd.append("--force")
             log_f = open(log_path, "w")
             proc = subprocess.Popen(cmd, stdout=log_f, stderr=subprocess.STDOUT)
-            children.append((i, proc, cursor, sz, log_path, log_f))
-            print(f"  worker {i}: {args.type}-{args.year}-{cursor}..{cursor + sz - 1} "
-                  f"-> pid {proc.pid}, log {log_path}")
-            cursor += sz
+            children.append((i, proc, log_path, log_f, chunk_start, chunk_end))
+            print(f"  worker {i}: {chunk_start} .. {chunk_end} "
+                  f"({len(chunk)} weekdays) -> pid {proc.pid}, log {log_path}")
         if not children:
-            print("Nothing to dispatch (count <= 0).")
+            print("Nothing to dispatch.")
             return
         print(f"Dispatched {len(children)} workers. Waiting for completion...")
-        for i, proc, _, _, log_path, log_f in children:
+        for i, proc, log_path, log_f, s, e in children:
             rc = proc.wait()
             log_f.close()
-            print(f"  worker {i}: exit {rc}  (see {log_path})")
+            print(f"  worker {i} ({s}..{e}): exit {rc}  (see {log_path})")
         print("All workers finished.")
         return
 
     if args.chrome:
-        # CDP-attached system Chrome (debugging fallback). Cloudflare can
-        # fingerprint the resulting browser more easily; expect more gates.
+        # CDP-attached system Chrome (debugging fallback). Expect more CF gates.
         try:
             pids = subprocess.check_output(f"lsof -i :{DEBUG_PORT} -t", shell=True).decode().split()
             for pid in pids: os.kill(int(pid), 15); time.sleep(2)
@@ -781,35 +1494,27 @@ async def main():
             browser = await p.chromium.connect_over_cdp(f"http://localhost:{DEBUG_PORT}")
             context = browser.contexts[0]
             page = context.pages[0] if context.pages else await context.new_page()
-            await run_scraper_loop(args, context, page, start_num)
+            await run_scraper_loop(args, context, page, dates_to_scrape)
             await browser.close()
         return
 
-    # Default: Camoufox (Playwright Firefox build with anti-fingerprint
-    # hardening). Required for click-driven downloads to clear CF gates.
+    # Default: Camoufox (anti-fingerprint Playwright Firefox build).
     if not CAMOUFOX_AVAILABLE:
         print("Error: Camoufox not installed in this venv.")
         print("Install with: pip install 'camoufox[geoip]'")
         print("Or use --chrome to fall back to system Chrome via CDP (degraded gate-clearance).")
         return
-    print("Launching Camoufox hardened browser...")
+    print(f"Launching Camoufox; will process {len(dates_to_scrape)} weekday(s) "
+          f"({dates_to_scrape[0]} .. {dates_to_scrape[-1]})")
     async with AsyncCamoufox(
         headless=False,
         os="macos",
-        humanize=True,  # natural delays + mouse movements
+        humanize=True,
     ) as browser:
         context = await browser.new_context(accept_downloads=True)
         page = await context.new_page()
-        await run_scraper_loop(args, context, page, start_num)
+        await run_scraper_loop(args, context, page, dates_to_scrape)
 
-async def run_scraper_loop(args, context, page, start_num):
-    for i in range(start_num, start_num + args.count):
-        case_id = f"CJ-{args.year}-{i}"
-        try: 
-            await scrape_case_detail(context, page, {"case_num": case_id, "url": f"{CASE_URL}?db=tulsa&number={case_id}"})
-        except Exception as e:
-            if str(e) == "IP_RESTRICTED": break
-            print(f"Error on {case_id}: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())

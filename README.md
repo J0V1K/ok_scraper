@@ -47,58 +47,76 @@ The schema of `register_of_actions.json` matches the SF scraper's, so
 
 ## Workflow
 
+The scraper iterates **weekdays in `[--start-date, --end-date]`** and, for
+each day, hits OSCN's `Results.aspx` once per case-type in `--type`. Cases
+are written under `data/<filing_iso>/<CASE_NUMBER>/` keyed by the case's
+**actual** Filed-On date (taken from the case-info page, with the search
+day as fallback). Per-day state lives in `day_summary.json` and
+`failed_cases.json`.
+
 Selectors are calibrated against `tulsa CJ-2024-1` (see
 `data/_calibration/`). Metadata comes from OSCN's embedded
 `<script id="json_style">` block; docket events from
-`tr.docketRow.primary-entry`. PDF downloads are click-driven from the
-case page (`a.doc-pdf` element) so each request is dispatched as a real
-in-session interaction with Cloudflare-trusted referer/cookies.
+`tr.docketRow.primary-entry`. Search-result rows come from
+`tr.resultTableRow`. PDF downloads use a session-request fast path with
+a click-popup fallback when CF challenges fire.
 
-### 1. Smoke test on a small batch
-
-```bash
-detection_pilot/.venv/bin/python ok_scraper/scraper.py \
-  --year 2024 --type CJ --start 79 --count 3
-```
-
-Expected: 3 cases scraped, all PDFs downloaded silently (success returns
-without printing), and a `register_of_actions.json` per case with
-non-null `doc_filename` for every high-value action.
-
-### 2. Mega-case test (verify the cap)
-
-CJ-2024-82 is a 36-doc case that previously triggered an IP block.
-With the per-case cap, the scraper should now download up to 5 PDFs and
-defer the rest:
+### 1. Smoke test on one weekday
 
 ```bash
 detection_pilot/.venv/bin/python ok_scraper/scraper.py \
-  --year 2024 --type CJ --start 82 --count 1
+  --start-date 2024-01-02 --end-date 2024-01-02 \
+  --county tulsa --type CJ,CV
 ```
 
-Expected: 5 PDFs saved, the remaining 31 actions in
-`register_of_actions.json` show `doc_filename: null`. No IP block.
+Expected: per-type search counts logged, cases scraped, a
+`data/2024-01-02/day_summary.json` written with `total_cases`,
+`scraped_cases`, and `per_type_kept` breakdown.
 
-### 3. Backfill batch
-
-Auto-resume picks up where the last run left off:
+### 2. Multi-type day (civil + criminal)
 
 ```bash
 detection_pilot/.venv/bin/python ok_scraper/scraper.py \
-  --year 2024 --type CJ --count 25
+  --start-date 2024-01-03 --end-date 2024-01-03 \
+  --type CJ,CV,CF,CM
 ```
 
-The scraper writes `register_of_actions.json` per case as it goes; if
-you interrupt and rerun, auto-resume continues from the highest-numbered
-case directory present.
+If any single-day search returns ≥ 480 rows, the scraper logs a
+`WATERMARK` warning and dumps the raw HTML under
+`data/<day>/_search_dumps/<type>.html` for inspection. From the
+diagnostic capture, real CJ counts per Tulsa weekday are well under
+this; the watermark catches the day this assumption fails.
 
-### 4. Failed-only retry pass (future)
+### 3. Backfill range with workers
 
-Cases hitting the per-case cap or the consecutive-gate circuit breaker
-land in `register_of_actions.json` with `doc_filename: null` for the
-deferred PDFs. A future pass could reload those entries and retry their
-clicks under cooler session conditions; the loader for that mode isn't
-yet wired up.
+```bash
+detection_pilot/.venv/bin/python ok_scraper/scraper.py \
+  --start-date 2024-01-02 --end-date 2024-01-31 \
+  --type CJ,CV,CF,CM --workers 3
+```
+
+Workers chunk the date range into N contiguous slices; each spawns its
+own Camoufox instance and writes per-worker logs to
+`data/_worker_logs/worker_<i>_<start>_to_<end>.log`. Auto-resume skips
+weekdays whose `day_summary.json` shows `scraped_cases >= total_cases`
+and zero failures.
+
+### 4. Force re-scrape
+
+```bash
+... --start-date 2024-01-02 --end-date 2024-01-02 --force
+```
+
+Re-scrapes even days marked complete. Per-case `register_of_actions.json`
+files are still skipped if present — pass through `--force` doesn't
+overwrite case-level data.
+
+### 5. Failed-only retry pass (future)
+
+Per-day `failed_cases.json` lists cases that errored mid-scrape (CF gate
+overruns, popup timeouts). A `--failed-only` flag is on the roadmap; for
+now you can manually re-run a small date range to retry — the new code
+auto-skips already-complete cases.
 
 ### 5. Hand off to detection_pilot
 
@@ -120,18 +138,34 @@ way they did for SF.
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `--year` | `2024` | Year segment of the case number to iterate. |
-| `--type` | `CJ` | Case-type prefix (single value; multi-type isn't supported in sequential mode). |
-| `--start` | auto-resume | First sequence number. Defaults to `max(existing CJ_<YEAR>_N) + 1` under `data/`. |
-| `--count` | `2` | How many sequential cases to attempt this run. |
-| `--chrome` | off | Fall back to attaching to system Chrome over CDP (debugging only). Default is Camoufox. |
+| `--start-date` / `--end-date` | required | Inclusive YYYY-MM-DD range; weekdays only. |
+| `--county` | `tulsa` | OSCN db parameter (`tulsa` or `oklahoma`). |
+| `--type` | `CJ,CV,CF,CM` | Comma-separated case-type prefixes searched per day. |
+| `--workers` | `1` | Parallel scraper processes; each gets a contiguous date slice. |
+| `--chrome` | off | Fall back to attaching to system Chrome over CDP (debugging only). |
+| `--force` | off | Re-scrape days even if `day_summary.json` marks them complete. |
 
 PDF downloads are serialized via a single semaphore. Per-case downloads
 are capped at `PER_CASE_PDF_CAP = 5`, and a session abandons further
 PDFs in a case after `MAX_CONSECUTIVE_GATES = 2` consecutive failures —
 both bounds prevent a single mega-litigation case from burning the IP's
-verification budget. Inter-PDF sleep is `random.uniform(5, 12)` seconds
+verification budget. Inter-PDF sleep is `random.uniform(1, 3)` seconds
 on top of Camoufox's `humanize=True` jitter.
+
+### Migration: existing `data/CJ_YYYY_N/` data
+
+Run once to move the old flat structure into the date-bucketed layout
+and OCR every PDF with Tesseract:
+
+```bash
+detection_pilot/.venv/bin/python ok_scraper/migrate_existing.py
+```
+
+OCR result is per-action telemetry in each `register_of_actions.json`
+(`text_filename`, `text_chars`, `text_extraction_status`, etc.). On
+successful OCR the source PDF is deleted and replaced with the `.txt`;
+on failure the PDF is preserved for a re-OCR pass with different
+settings.
 
 ## Notes
 
