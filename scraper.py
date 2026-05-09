@@ -891,7 +891,8 @@ async def download_pdf(page, action, dest_path):
 
         session_ok = await attempt_session_request()
         if session_ok:
-            return _result(True, mode="session")
+            ocr = await _run_ocr_and_finalize()
+            return _result(True, mode="session", ocr=ocr)
 
         try:
             mode, download = await attempt_click_download()
@@ -910,14 +911,16 @@ async def download_pdf(page, action, dest_path):
                 return _result(False, error=f"click_download_failed: {str(e)[:80]}")
 
         if mode == "session":
-            return _result(True, mode="session")
+            ocr = await _run_ocr_and_finalize()
+            return _result(True, mode="session", ocr=ocr)
 
         try:
             await download.save_as(dest_path)
-            return _result(True, mode="click")
         except Exception as e:
             print(f"      {dest_path.name}: save failed: {e}")
             return _result(False, mode="click", error=f"save_failed: {str(e)[:80]}")
+        ocr = await _run_ocr_and_finalize()
+        return _result(True, mode="click", ocr=ocr)
 
 async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""):
     """Scrape one case's info page and write data/<filing_iso>/<case_num>/register_of_actions.json.
@@ -1195,9 +1198,15 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
             doc_id = parse_qs(urlparse(action['doc_url']).query).get('bc', ['doc'])[0]
             doc_filename = f"{action['date']}_{doc_id}.pdf"
             dest = case_dir / doc_filename
-            if dest.exists():
+            txt_dest = dest.with_suffix(".txt")
+            # Cache hit: either the PDF or its OCR'd .txt is already on
+            # disk. The .txt alone is the typical post-migration state
+            # (PDFs are deleted after successful OCR).
+            if dest.exists() or (txt_dest.exists() and txt_dest.stat().st_size > 0):
                 downloaded += 1
-                per_action["doc_filename"] = doc_filename
+                per_action["doc_filename"] = doc_filename if dest.exists() else None
+                if txt_dest.exists():
+                    per_action["text_filename"] = txt_dest.name
                 per_action["download_mode"] = "cached"
             elif attempts >= PER_CASE_PDF_CAP:
                 # Per-case cap reached. Defer remaining high-value docs.
@@ -1213,12 +1222,24 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
                     "elapsed_s": result_dict.get("elapsed_s"),
                     "ok": result_dict.get("ok"),
                     "error": result_dict.get("error"),
+                    "text_status": result_dict.get("text_extraction_status"),
+                    "text_chars": result_dict.get("text_chars"),
                 })
                 per_action["download_mode"] = result_dict.get("mode")
                 per_action["download_elapsed_s"] = result_dict.get("elapsed_s")
+                # OCR telemetry — present when download succeeded and OCR ran.
+                for k in ("text_filename", "text_chars", "text_pages",
+                          "text_letter_frac", "text_extraction_status",
+                          "text_extraction_elapsed_s", "ocr_engine",
+                          "text_extraction_error"):
+                    if k in result_dict:
+                        per_action[k] = result_dict[k]
                 if result_dict.get("ok"):
                     downloaded += 1
-                    per_action["doc_filename"] = doc_filename
+                    # If OCR succeeded and we deleted the PDF, doc_filename
+                    # in the register reflects what's still on disk (None).
+                    kept_pdf_name = result_dict.get("doc_filename_kept")
+                    per_action["doc_filename"] = kept_pdf_name if kept_pdf_name else None
                     consecutive_gates = 0
                 else:
                     per_action["download_error"] = result_dict.get("error")
@@ -1420,7 +1441,16 @@ async def main():
                              "Each child gets a contiguous slice of the date range.")
     parser.add_argument("--force", action="store_true",
                         help="Ignore day_is_complete; re-scrape even completed days.")
+    parser.add_argument("--keep-pdfs", action="store_true",
+                        help="Retain PDFs after successful OCR (default: delete to save space).")
+    parser.add_argument("--no-ocr", action="store_true",
+                        help="Skip the inline OCR pass; keep PDFs as-is. Useful for debugging.")
     args = parser.parse_args()
+
+    # Propagate runtime toggles to module-level state read by download_pdf.
+    global RUN_OCR, KEEP_PDFS
+    RUN_OCR = not args.no_ocr
+    KEEP_PDFS = args.keep_pdfs or args.no_ocr
 
     # Resolve the weekday set
     all_weekdays = weekday_dates(args.start_date, args.end_date)
@@ -1467,6 +1497,10 @@ async def main():
             ]
             if args.force:
                 cmd.append("--force")
+            if args.keep_pdfs:
+                cmd.append("--keep-pdfs")
+            if args.no_ocr:
+                cmd.append("--no-ocr")
             log_f = open(log_path, "w")
             proc = subprocess.Popen(cmd, stdout=log_f, stderr=subprocess.STDOUT)
             children.append((i, proc, log_path, log_f, chunk_start, chunk_end))
