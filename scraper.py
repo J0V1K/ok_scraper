@@ -31,6 +31,8 @@ from ocr import ocr_pdf as _ocr_pdf  # noqa: E402
 # Default behavior: OCR every saved PDF, delete the PDF on OCR success.
 RUN_OCR = True
 KEEP_PDFS = False
+DISABLE_FILTER = False  # When True, attempt every doc-bearing action (still capped at PER_CASE_PDF_CAP).
+DISABLE_CAP = False     # When True, ignore PER_CASE_PDF_CAP — mega-cases will burn through CF budget.
 
 # --- Configuration ---
 DEBUG_PORT = 9223
@@ -85,6 +87,11 @@ DOWNLOAD_SEMAPHORE = asyncio.Semaphore(1)
 # that one outlier case caps damage to the IP's reputation.
 PER_CASE_PDF_CAP = 5
 MAX_CONSECUTIVE_GATES = 2
+# How many CF-popup fallbacks we'll tolerate per case before bailing.
+# Each popup costs ~15s + an extra Turnstile solve. If we're being forced
+# down this path on most actions, the IP's CF reputation is degrading
+# fast; better to abandon the case than feed the gate.
+MAX_POPUP_FALLBACKS_PER_CASE = 8
 
 # --- High-Value Document Filters ---
 HIGH_VALUE_BRIEF_RE = re.compile(
@@ -463,25 +470,55 @@ async def _click_visible(scope, selectors, *, timeout_ms=1500, force=False):
 async def _click_turnstile_checkbox(page):
     scopes = [page, *page.frames]
 
-    # Prefer clicking inside the Turnstile iframe via a real Playwright click.
-    iframe_hit = await _click_visible(
-        page,
-        [
-            "iframe[src*='turnstile']",
-            "iframe[title*='Widget']",
-            "iframe[title*='challenge']",
-        ],
-        force=True,
-    )
-    if iframe_hit:
+    iframe_selectors = [
+        "iframe[src*='turnstile']",
+        "iframe[title*='Widget']",
+        "iframe[title*='challenge']",
+    ]
+
+    # Best path: drill into the Turnstile iframe and click the actual
+    # checkbox/label element. Cross-origin iframe content is reachable
+    # via Playwright's frame_locator() in the same browser context.
+    for selector in iframe_selectors:
         try:
-            iframe = page.locator(iframe_hit).first
-            box = await iframe.bounding_box()
-            if box:
-                await page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
-                return f"iframe-center:{iframe_hit}"
+            iframe = page.locator(selector).first
+            if await iframe.count() == 0:
+                continue
+            frame = page.frame_locator(selector)
+            for inner in [
+                "input[type='checkbox']",
+                "label.ctp-checkbox-label",
+                "label[for*='checkbox']",
+                "#challenge-stage",
+                "[role='checkbox']",
+            ]:
+                try:
+                    el = frame.locator(inner).first
+                    if await el.count() and await el.is_visible(timeout=1000):
+                        await el.click(timeout=1500)
+                        return f"frame:{selector} > {inner}"
+                except Exception:
+                    continue
         except Exception:
-            pass
+            continue
+
+    # Fallback: fixed-offset click near the LEFT of the Turnstile iframe
+    # (Cloudflare's standard widget renders the checkbox ~30px from the
+    # left edge, vertically centered). Center-clicks miss it entirely.
+    for selector in iframe_selectors:
+        try:
+            iframe = page.locator(selector).first
+            if await iframe.count() == 0:
+                continue
+            box = await iframe.bounding_box()
+            if not box:
+                continue
+            cx = box["x"] + 30
+            cy = box["y"] + box["height"] / 2
+            await page.mouse.click(cx, cy)
+            return f"iframe-checkbox-offset:{selector}"
+        except Exception:
+            continue
 
     selector_hit = await _click_visible(
         page,
@@ -643,7 +680,7 @@ async def wait_for_human_solve(
                         submitted_at = time.monotonic(); continue
                     
                     if submitted_at == 0:
-                        print("Turnstile solved! Finding submit button..."); await asyncio.sleep(2)
+                        print("Turnstile solved! Finding submit button..."); await asyncio.sleep(0.8)
                         click_res = await _submit_challenge_page(page)
                         if click_res:
                             print(f">>> Submission triggered via {click_res}."); 
@@ -656,7 +693,7 @@ async def wait_for_human_solve(
                 if elapsed > 0 and elapsed % 5 == 0:
                     status = "Solved, waiting nav" if is_solved else "Solve in Chrome"
                     print(f"  ... {elapsed}s, {status}, title: {title}")
-                await asyncio.sleep(1); continue
+                await asyncio.sleep(0.5); continue
             
             submitted_at = 0
             submit_reload_count = 0
@@ -697,8 +734,8 @@ async def wait_for_human_solve(
                 print("Challenge page closed; treating as success")
                 return True
             if str(e) == "IP_RESTRICTED": raise e
-            await asyncio.sleep(1); continue
-        await asyncio.sleep(1)
+            await asyncio.sleep(0.5); continue
+        await asyncio.sleep(0.5)
 
 async def download_pdf(page, action, dest_path):
     """Download a PDF; return telemetry dict for the caller to record.
@@ -721,12 +758,13 @@ async def download_pdf(page, action, dest_path):
     """
     started = time.monotonic()
 
-    def _result(ok, mode=None, error=None, ocr=None):
+    def _result(ok, mode=None, error=None, ocr=None, popup_used=False):
         out = {
             "ok": ok,
             "mode": mode,
             "elapsed_s": round(time.monotonic() - started, 3),
             "error": error,
+            "popup_used": popup_used,
         }
         if ocr is not None:
             out.update(ocr)
@@ -792,7 +830,7 @@ async def download_pdf(page, action, dest_path):
         return out
 
     async with DOWNLOAD_SEMAPHORE:
-        await asyncio.sleep(random.uniform(1.0, 3.0))
+        await asyncio.sleep(random.uniform(0.3, 0.8))
 
         doc_url = action.get("doc_url") or ""
         doc_id = parse_qs(urlparse(doc_url).query).get("bc", [""])[0]
@@ -850,11 +888,21 @@ async def download_pdf(page, action, dest_path):
                     auto_submit=True,
                     return_on_submit=True,
                     closed_ok=True,
-                    max_wait_s=35,
+                    max_wait_s=15,
                     max_submit_reloads=1,
                 )
             except Exception as popup_error:
                 print(f"      {dest_path.name}: popup solve failed: {popup_error}")
+            finally:
+                # Always close the popup so tabs don't accumulate. Each
+                # download spawns a fresh _blank popup; leaving them open
+                # piles up CF state and slows everything to a crawl.
+                # Brief settle so the cf_clearance cookie has time to land
+                # on the shared browser context before we drop the tab.
+                with contextlib.suppress(Exception):
+                    await asyncio.sleep(1.5)
+                    if not popup.is_closed():
+                        await popup.close()
 
         async def attempt_click_download():
             download_task = asyncio.create_task(page.context.wait_for_event("download", timeout=90_000))
@@ -905,22 +953,22 @@ async def download_pdf(page, action, dest_path):
                     mode, download = await attempt_click_download()
                 except Exception as e2:
                     print(f"      {dest_path.name}: download failed after CF clear: {e2}")
-                    return _result(False, error=f"cf_retry_failed: {str(e2)[:80]}")
+                    return _result(False, error=f"cf_retry_failed: {str(e2)[:80]}", popup_used=True)
             else:
                 print(f"      {dest_path.name}: download failed: {e}")
-                return _result(False, error=f"click_download_failed: {str(e)[:80]}")
+                return _result(False, error=f"click_download_failed: {str(e)[:80]}", popup_used=True)
 
         if mode == "session":
             ocr = await _run_ocr_and_finalize()
-            return _result(True, mode="session", ocr=ocr)
+            return _result(True, mode="session", ocr=ocr, popup_used=True)
 
         try:
             await download.save_as(dest_path)
         except Exception as e:
             print(f"      {dest_path.name}: save failed: {e}")
-            return _result(False, mode="click", error=f"save_failed: {str(e)[:80]}")
+            return _result(False, mode="click", error=f"save_failed: {str(e)[:80]}", popup_used=True)
         ocr = await _run_ocr_and_finalize()
-        return _result(True, mode="click", ocr=ocr)
+        return _result(True, mode="click", ocr=ocr, popup_used=True)
 
 async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""):
     """Scrape one case's info page and write data/<filing_iso>/<case_num>/register_of_actions.json.
@@ -1183,6 +1231,7 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
     downloaded = 0
     attempts = 0
     consecutive_gates = 0
+    popup_fallbacks = 0
     capped = False
     download_telemetry = []  # per-attempt {mode, elapsed_s, error}
     for action in data['actions']:
@@ -1194,7 +1243,7 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
             "doc_url": action['doc_url'],
             "doc_filename": None,
         }
-        if action['doc_url'] and is_high_value(action['proceedings']) and not capped:
+        if action['doc_url'] and (DISABLE_FILTER or is_high_value(action['proceedings'])) and not capped:
             doc_id = parse_qs(urlparse(action['doc_url']).query).get('bc', ['doc'])[0]
             doc_filename = f"{action['date']}_{doc_id}.pdf"
             dest = case_dir / doc_filename
@@ -1208,13 +1257,14 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
                 if txt_dest.exists():
                     per_action["text_filename"] = txt_dest.name
                 per_action["download_mode"] = "cached"
-            elif attempts >= PER_CASE_PDF_CAP:
+            elif not DISABLE_CAP and attempts >= PER_CASE_PDF_CAP:
                 # Per-case cap reached. Defer remaining high-value docs.
                 capped = True
                 print(f"    Cap hit ({PER_CASE_PDF_CAP} PDFs); deferring remaining to retry pass")
             else:
                 attempts += 1
-                print(f"    Target found ({attempts}/{PER_CASE_PDF_CAP}): {action['proceedings'][:60]}...")
+                cap_label = "∞" if DISABLE_CAP else str(PER_CASE_PDF_CAP)
+                print(f"    Target found ({attempts}/{cap_label}): {action['proceedings'][:60]}...")
                 result_dict = await download_pdf(page, action, dest)
                 download_telemetry.append({
                     "doc_id": doc_id,
@@ -1234,6 +1284,8 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
                           "text_extraction_error"):
                     if k in result_dict:
                         per_action[k] = result_dict[k]
+                if result_dict.get("popup_used"):
+                    popup_fallbacks += 1
                 if result_dict.get("ok"):
                     downloaded += 1
                     # If OCR succeeded and we deleted the PDF, doc_filename
@@ -1244,6 +1296,10 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
                 else:
                     per_action["download_error"] = result_dict.get("error")
                     consecutive_gates += 1
+                if popup_fallbacks >= MAX_POPUP_FALLBACKS_PER_CASE and not capped:
+                    capped = True
+                    print(f"    Popup-fallback cap hit ({popup_fallbacks}); CF reputation "
+                          "degrading on this case — deferring remaining to retry pass")
                     if consecutive_gates >= MAX_CONSECUTIVE_GATES:
                         capped = True
                         print(f"    Circuit breaker: {consecutive_gates} consecutive failures; "
@@ -1445,12 +1501,21 @@ async def main():
                         help="Retain PDFs after successful OCR (default: delete to save space).")
     parser.add_argument("--no-ocr", action="store_true",
                         help="Skip the inline OCR pass; keep PDFs as-is. Useful for debugging.")
+    parser.add_argument("--no-filter", action="store_true",
+                        help="Disable the high-value filter; attempt every doc-bearing action "
+                             "(still bounded by PER_CASE_PDF_CAP). Useful for surveying what OSCN serves.")
+    parser.add_argument("--no-cap", action="store_true",
+                        help=f"Disable the per-case PDF cap (default {PER_CASE_PDF_CAP}). "
+                             "MAX_CONSECUTIVE_GATES still aborts mid-case on CF cascades. "
+                             "Risk: mega-cases drive up download volume and CF gate exposure.")
     args = parser.parse_args()
 
     # Propagate runtime toggles to module-level state read by download_pdf.
-    global RUN_OCR, KEEP_PDFS
+    global RUN_OCR, KEEP_PDFS, DISABLE_FILTER, DISABLE_CAP
     RUN_OCR = not args.no_ocr
     KEEP_PDFS = args.keep_pdfs or args.no_ocr
+    DISABLE_FILTER = args.no_filter
+    DISABLE_CAP = args.no_cap
 
     # Resolve the weekday set
     all_weekdays = weekday_dates(args.start_date, args.end_date)
@@ -1501,6 +1566,10 @@ async def main():
                 cmd.append("--keep-pdfs")
             if args.no_ocr:
                 cmd.append("--no-ocr")
+            if args.no_filter:
+                cmd.append("--no-filter")
+            if args.no_cap:
+                cmd.append("--no-cap")
             log_f = open(log_path, "w")
             proc = subprocess.Popen(cmd, stdout=log_f, stderr=subprocess.STDOUT)
             children.append((i, proc, log_path, log_f, chunk_start, chunk_end))
