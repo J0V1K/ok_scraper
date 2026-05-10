@@ -33,6 +33,11 @@ RUN_OCR = True
 KEEP_PDFS = False
 DISABLE_FILTER = False  # When True, attempt every doc-bearing action (still capped at PER_CASE_PDF_CAP).
 DISABLE_CAP = False     # When True, ignore PER_CASE_PDF_CAP — mega-cases will burn through CF budget.
+# Default off: the popup-CF "fallback" path empirically does NOT reliably
+# unlock subsequent session requests, so each cycle costs an OSCN
+# verification credit without producing the document. Default behavior
+# now records the doc as gated and moves on. Opt back in via --enable-popup-fallback.
+ENABLE_POPUP_FALLBACK = False
 
 # --- Configuration ---
 DEBUG_PORT = 9223
@@ -758,17 +763,18 @@ async def download_pdf(page, action, dest_path):
     """
     started = time.monotonic()
 
-    def _result(ok, mode=None, error=None, ocr=None, popup_used=False):
-        out = {
+    def _result(ok, mode=None, error=None, ocr_task=None, popup_used=False):
+        # ocr_task is an asyncio.Task[dict] when OCR was started, or None
+        # otherwise. The case loop awaits it before writing the register
+        # so the next download can proceed in parallel with OCR.
+        return {
             "ok": ok,
             "mode": mode,
             "elapsed_s": round(time.monotonic() - started, 3),
             "error": error,
             "popup_used": popup_used,
+            "ocr_task": ocr_task,
         }
-        if ocr is not None:
-            out.update(ocr)
-        return out
 
     async def _run_ocr_and_finalize() -> dict:
         """OCR a freshly saved PDF, optionally drop the PDF on success.
@@ -939,8 +945,14 @@ async def download_pdf(page, action, dest_path):
 
         session_ok = await attempt_session_request()
         if session_ok:
-            ocr = await _run_ocr_and_finalize()
-            return _result(True, mode="session", ocr=ocr)
+            ocr_task = asyncio.create_task(_run_ocr_and_finalize())
+            return _result(True, mode="session", ocr_task=ocr_task)
+
+        if not ENABLE_POPUP_FALLBACK:
+            # Empirically the popup-CF "unlock" rarely makes the next
+            # session request succeed; each cycle just burns an OSCN
+            # verification credit. Record and move on.
+            return _result(False, error="cf_gated_skipped")
 
         try:
             mode, download = await attempt_click_download()
@@ -959,16 +971,16 @@ async def download_pdf(page, action, dest_path):
                 return _result(False, error=f"click_download_failed: {str(e)[:80]}", popup_used=True)
 
         if mode == "session":
-            ocr = await _run_ocr_and_finalize()
-            return _result(True, mode="session", ocr=ocr, popup_used=True)
+            ocr_task = asyncio.create_task(_run_ocr_and_finalize())
+            return _result(True, mode="session", ocr_task=ocr_task, popup_used=True)
 
         try:
             await download.save_as(dest_path)
         except Exception as e:
             print(f"      {dest_path.name}: save failed: {e}")
             return _result(False, mode="click", error=f"save_failed: {str(e)[:80]}", popup_used=True)
-        ocr = await _run_ocr_and_finalize()
-        return _result(True, mode="click", ocr=ocr, popup_used=True)
+        ocr_task = asyncio.create_task(_run_ocr_and_finalize())
+        return _result(True, mode="click", ocr_task=ocr_task, popup_used=True)
 
 async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""):
     """Scrape one case's info page and write data/<filing_iso>/<case_num>/register_of_actions.json.
@@ -1234,6 +1246,11 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
     popup_fallbacks = 0
     capped = False
     download_telemetry = []  # per-attempt {mode, elapsed_s, error}
+    # Pipelined-OCR queue: [(per_action, ocr_task), ...]. We start the OCR
+    # task as soon as the download lands and let the next download proceed
+    # in parallel; we await the tasks at end-of-case and merge their
+    # results into the per_action records before writing the register.
+    pending_ocr: list[tuple[dict, asyncio.Task]] = []
     for action in data['actions']:
         doc_filename = None
         per_action = {
@@ -1272,27 +1289,21 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
                     "elapsed_s": result_dict.get("elapsed_s"),
                     "ok": result_dict.get("ok"),
                     "error": result_dict.get("error"),
-                    "text_status": result_dict.get("text_extraction_status"),
-                    "text_chars": result_dict.get("text_chars"),
                 })
                 per_action["download_mode"] = result_dict.get("mode")
                 per_action["download_elapsed_s"] = result_dict.get("elapsed_s")
-                # OCR telemetry — present when download succeeded and OCR ran.
-                for k in ("text_filename", "text_chars", "text_pages",
-                          "text_letter_frac", "text_extraction_status",
-                          "text_extraction_elapsed_s", "ocr_engine",
-                          "text_extraction_error"):
-                    if k in result_dict:
-                        per_action[k] = result_dict[k]
                 if result_dict.get("popup_used"):
                     popup_fallbacks += 1
                 if result_dict.get("ok"):
                     downloaded += 1
-                    # If OCR succeeded and we deleted the PDF, doc_filename
-                    # in the register reflects what's still on disk (None).
-                    kept_pdf_name = result_dict.get("doc_filename_kept")
-                    per_action["doc_filename"] = kept_pdf_name if kept_pdf_name else None
+                    # Provisional: assume PDF was kept on disk. The OCR
+                    # finalize pass below replaces this if it was deleted
+                    # after successful OCR.
+                    per_action["doc_filename"] = doc_filename
                     consecutive_gates = 0
+                    ocr_task = result_dict.get("ocr_task")
+                    if ocr_task is not None:
+                        pending_ocr.append((per_action, ocr_task))
                 else:
                     per_action["download_error"] = result_dict.get("error")
                     consecutive_gates += 1
@@ -1300,11 +1311,33 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
                     capped = True
                     print(f"    Popup-fallback cap hit ({popup_fallbacks}); CF reputation "
                           "degrading on this case — deferring remaining to retry pass")
-                    if consecutive_gates >= MAX_CONSECUTIVE_GATES:
-                        capped = True
-                        print(f"    Circuit breaker: {consecutive_gates} consecutive failures; "
-                              f"deferring remaining to retry pass")
+                if consecutive_gates >= MAX_CONSECUTIVE_GATES and not capped:
+                    capped = True
+                    print(f"    Circuit breaker: {consecutive_gates} consecutive failures; "
+                          f"deferring remaining to retry pass")
         final_actions.append(per_action)
+
+    # Drain pipelined OCR tasks and merge their results into the per-action
+    # dicts before we serialize the register.
+    for per_action, ocr_task in pending_ocr:
+        try:
+            ocr_result = await ocr_task
+        except Exception as e:
+            ocr_result = {
+                "text_extraction_status": "error",
+                "text_extraction_error": f"task failure: {str(e)[:160]}",
+                "text_extraction_elapsed_s": 0.0,
+            }
+        for k in ("text_filename", "text_chars", "text_pages",
+                  "text_letter_frac", "text_extraction_status",
+                  "text_extraction_elapsed_s", "ocr_engine",
+                  "text_extraction_error"):
+            if k in ocr_result:
+                per_action[k] = ocr_result[k]
+        # Finalize doc_filename based on whether OCR kept/deleted the PDF.
+        kept_pdf_name = ocr_result.get("doc_filename_kept")
+        if kept_pdf_name is None:
+            per_action["doc_filename"] = None
 
     finished_at = utc_now_iso()
     elapsed_s = round(time.monotonic() - case_started_perf, 3)
@@ -1508,14 +1541,19 @@ async def main():
                         help=f"Disable the per-case PDF cap (default {PER_CASE_PDF_CAP}). "
                              "MAX_CONSECUTIVE_GATES still aborts mid-case on CF cascades. "
                              "Risk: mega-cases drive up download volume and CF gate exposure.")
+    parser.add_argument("--enable-popup-fallback", action="store_true",
+                        help="Re-enable the click-popup fallback when a session request returns "
+                             "a CF gate. Default off — empirically the popup unlock rarely "
+                             "yields the doc and burns OSCN's verification budget.")
     args = parser.parse_args()
 
     # Propagate runtime toggles to module-level state read by download_pdf.
-    global RUN_OCR, KEEP_PDFS, DISABLE_FILTER, DISABLE_CAP
+    global RUN_OCR, KEEP_PDFS, DISABLE_FILTER, DISABLE_CAP, ENABLE_POPUP_FALLBACK
     RUN_OCR = not args.no_ocr
     KEEP_PDFS = args.keep_pdfs or args.no_ocr
     DISABLE_FILTER = args.no_filter
     DISABLE_CAP = args.no_cap
+    ENABLE_POPUP_FALLBACK = args.enable_popup_fallback
 
     # Resolve the weekday set
     all_weekdays = weekday_dates(args.start_date, args.end_date)
@@ -1570,6 +1608,8 @@ async def main():
                 cmd.append("--no-filter")
             if args.no_cap:
                 cmd.append("--no-cap")
+            if args.enable_popup_fallback:
+                cmd.append("--enable-popup-fallback")
             log_f = open(log_path, "w")
             proc = subprocess.Popen(cmd, stdout=log_f, stderr=subprocess.STDOUT)
             children.append((i, proc, log_path, log_f, chunk_start, chunk_end))
