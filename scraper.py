@@ -84,7 +84,7 @@ TYPE_TO_DCCT = {
 }
 
 # --- Globals ---
-DOWNLOAD_SEMAPHORE = asyncio.Semaphore(1)
+DOWNLOAD_SEMAPHORE = asyncio.Semaphore(3)
 
 # Guardrails so a single big-litigation case can't burn through CF's
 # "failed-verification" budget. Each click on an a.doc-pdf is a request
@@ -92,6 +92,11 @@ DOWNLOAD_SEMAPHORE = asyncio.Semaphore(1)
 # that one outlier case caps damage to the IP's reputation.
 PER_CASE_PDF_CAP = 5
 MAX_CONSECUTIVE_GATES = 2
+# When True, on the first CF gate inside a case, re-navigate to the
+# case-info page to refresh CF cookies and retry the same PDF once.
+# Empirically CF allows ~3 PDF requests per case-info-page-clear; this
+# trades extra Turnstile cost for more captures per case.
+REFRESH_ON_GATE = False
 # How many CF-popup fallbacks we'll tolerate per case before bailing.
 # Each popup costs ~15s + an extra Turnstile solve. If we're being forced
 # down this path on most actions, the IP's CF reputation is degrading
@@ -1244,6 +1249,8 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
     attempts = 0
     consecutive_gates = 0
     popup_fallbacks = 0
+    case_info_refreshes = 0
+    case_info_refresh_elapsed = 0.0
     capped = False
     download_telemetry = []  # per-attempt {mode, elapsed_s, error}
     # Pipelined-OCR queue: [(per_action, ocr_task), ...]. We start the OCR
@@ -1294,6 +1301,41 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
                 per_action["download_elapsed_s"] = result_dict.get("elapsed_s")
                 if result_dict.get("popup_used"):
                     popup_fallbacks += 1
+                # If the first gate of this case fires and REFRESH_ON_GATE
+                # is on, re-navigate to case-info to refresh CF cookies
+                # and retry the same PDF once. CF empirically allows ~3
+                # PDF requests per case-info-clear before gating.
+                if (
+                    REFRESH_ON_GATE
+                    and not result_dict.get("ok")
+                    and result_dict.get("error") == "cf_gated_skipped"
+                    and consecutive_gates == 0
+                ):
+                    refresh_started = time.monotonic()
+                    print(f"    Gate detected; refreshing case-info to renew CF and retrying once")
+                    try:
+                        await page.goto(case_data['url'], wait_until="commit", timeout=60000)
+                    except Exception:
+                        pass
+                    try:
+                        await wait_for_human_solve(page, target_text="Case Information")
+                    except Exception as e:
+                        print(f"    Case-info refresh failed: {e}; treating as gate")
+                    refresh_elapsed = round(time.monotonic() - refresh_started, 2)
+                    case_info_refreshes += 1
+                    case_info_refresh_elapsed += refresh_elapsed
+                    # Retry the download once.
+                    result_dict = await download_pdf(page, action, dest)
+                    download_telemetry.append({
+                        "doc_id": doc_id,
+                        "mode": result_dict.get("mode"),
+                        "elapsed_s": result_dict.get("elapsed_s"),
+                        "ok": result_dict.get("ok"),
+                        "error": result_dict.get("error"),
+                        "post_refresh": True,
+                    })
+                    per_action["download_mode"] = result_dict.get("mode")
+                    per_action["download_elapsed_s"] = result_dict.get("elapsed_s")
                 if result_dict.get("ok"):
                     downloaded += 1
                     # Provisional: assume PDF was kept on disk. The OCR
@@ -1318,26 +1360,30 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
         final_actions.append(per_action)
 
     # Drain pipelined OCR tasks and merge their results into the per-action
-    # dicts before we serialize the register.
-    for per_action, ocr_task in pending_ocr:
-        try:
-            ocr_result = await ocr_task
-        except Exception as e:
-            ocr_result = {
-                "text_extraction_status": "error",
-                "text_extraction_error": f"task failure: {str(e)[:160]}",
-                "text_extraction_elapsed_s": 0.0,
-            }
-        for k in ("text_filename", "text_chars", "text_pages",
-                  "text_letter_frac", "text_extraction_status",
-                  "text_extraction_elapsed_s", "ocr_engine",
-                  "text_extraction_error"):
-            if k in ocr_result:
-                per_action[k] = ocr_result[k]
-        # Finalize doc_filename based on whether OCR kept/deleted the PDF.
-        kept_pdf_name = ocr_result.get("doc_filename_kept")
-        if kept_pdf_name is None:
-            per_action["doc_filename"] = None
+    # dicts before we serialize the register. asyncio.gather lets the
+    # remaining OCR threads finish in parallel; the case-end wait is then
+    # bounded by the slowest OCR rather than the sum.
+    if pending_ocr:
+        ocr_results = await asyncio.gather(
+            *(t for _, t in pending_ocr), return_exceptions=True
+        )
+        for (per_action, _), ocr_result in zip(pending_ocr, ocr_results):
+            if isinstance(ocr_result, BaseException):
+                ocr_result = {
+                    "text_extraction_status": "error",
+                    "text_extraction_error": f"task failure: {str(ocr_result)[:160]}",
+                    "text_extraction_elapsed_s": 0.0,
+                }
+            for k in ("text_filename", "text_chars", "text_pages",
+                      "text_letter_frac", "text_extraction_status",
+                      "text_extraction_elapsed_s", "ocr_engine",
+                      "text_extraction_error"):
+                if k in ocr_result:
+                    per_action[k] = ocr_result[k]
+            # Finalize doc_filename based on whether OCR kept/deleted the PDF.
+            kept_pdf_name = ocr_result.get("doc_filename_kept")
+            if kept_pdf_name is None:
+                per_action["doc_filename"] = None
 
     finished_at = utc_now_iso()
     elapsed_s = round(time.monotonic() - case_started_perf, 3)
@@ -1377,6 +1423,8 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
                 "capped": capped,
                 "consecutive_gates_at_end": consecutive_gates,
                 "download_mode_summary": mode_summary,
+                "case_info_refreshes": case_info_refreshes,
+                "case_info_refresh_elapsed_s": round(case_info_refresh_elapsed, 2),
             },
         },
         "actions": final_actions,
@@ -1545,15 +1593,27 @@ async def main():
                         help="Re-enable the click-popup fallback when a session request returns "
                              "a CF gate. Default off — empirically the popup unlock rarely "
                              "yields the doc and burns OSCN's verification budget.")
+    parser.add_argument("--data-root", default=None,
+                        help="Override the output root (default: ok_scraper/data). "
+                             "Useful for writing to an external drive.")
+    parser.add_argument("--refresh-on-gate", action="store_true",
+                        help="On the first CF gate in a case, re-navigate to the case-info "
+                             "page to renew CF cookies and retry the same PDF once. Trades "
+                             "an extra Turnstile solve for more PDFs per case.")
     args = parser.parse_args()
 
     # Propagate runtime toggles to module-level state read by download_pdf.
-    global RUN_OCR, KEEP_PDFS, DISABLE_FILTER, DISABLE_CAP, ENABLE_POPUP_FALLBACK
+    global RUN_OCR, KEEP_PDFS, DISABLE_FILTER, DISABLE_CAP, ENABLE_POPUP_FALLBACK, DATA_ROOT, REFRESH_ON_GATE
     RUN_OCR = not args.no_ocr
     KEEP_PDFS = args.keep_pdfs or args.no_ocr
     DISABLE_FILTER = args.no_filter
     DISABLE_CAP = args.no_cap
     ENABLE_POPUP_FALLBACK = args.enable_popup_fallback
+    REFRESH_ON_GATE = args.refresh_on_gate
+    if args.data_root:
+        DATA_ROOT = Path(args.data_root).expanduser().resolve()
+        DATA_ROOT.mkdir(parents=True, exist_ok=True)
+        print(f"Using data root: {DATA_ROOT}")
 
     # Resolve the weekday set
     all_weekdays = weekday_dates(args.start_date, args.end_date)
@@ -1610,6 +1670,10 @@ async def main():
                 cmd.append("--no-cap")
             if args.enable_popup_fallback:
                 cmd.append("--enable-popup-fallback")
+            if args.data_root:
+                cmd.extend(["--data-root", str(DATA_ROOT)])
+            if args.refresh_on_gate:
+                cmd.append("--refresh-on-gate")
             log_f = open(log_path, "w")
             proc = subprocess.Popen(cmd, stdout=log_f, stderr=subprocess.STDOUT)
             children.append((i, proc, log_path, log_f, chunk_start, chunk_end))
