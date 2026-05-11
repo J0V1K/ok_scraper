@@ -33,7 +33,12 @@ from pathlib import Path
 
 SCRAPER = Path(__file__).resolve().parent / "scraper.py"
 TOGGLE_SCRIPT = Path(__file__).resolve().parent / "_hotspot_toggle.applescript"
+SWITCH_CITY_SCRIPT = Path(__file__).resolve().parent / "_hotspot_switch_city.applescript"
 DEFAULT_VPN_NAME = "Hotspot Shield VPN (Hydra)"
+# Bootstrap rotation pool — US cities present in Hotspot Shield's
+# Quick-access list on the calibration profile. Extend later via the
+# All-locations menu if we need a deeper pool.
+DEFAULT_CITY_ROTATION = ("Atlanta", "Boston", "Charlotte")
 IP_BLOCK_PATTERN = re.compile(r"IP_RESTRICTED|YOUR IP ADDRESS IS RESTRICTED", re.IGNORECASE)
 
 
@@ -54,30 +59,25 @@ def public_ip() -> str:
         return ""
 
 
-def cycle_vpn(vpn_name: str, settle_s: float = 6.0) -> None:
-    """Toggle Hotspot Shield off/on via GUI (AppleScript).
+def switch_to_city(city: str, settle_s: float = 6.0) -> None:
+    """Switch Hotspot Shield to a specific US city via GUI (AppleScript).
 
-    Empirically `scutil --nc stop/start` reuses the same exit IP — the
-    NEVPNManager toggle doesn't reinvoke Hotspot Shield's
-    server-selection logic. Driving the app UI directly DOES yield a
-    new exit, so we use osascript to click the in-app Disconnect/Connect
-    toggle.
-
-    `vpn_name` is unused on this path but kept for API stability; if a
-    user later wires up Tier 3 (IKEv2 profiles) we'll add a branch here.
+    A plain Disconnect/Connect toggle doesn't escape an OSCN block —
+    Hotspot Shield's "Optimal" mode rehands the same exit. Selecting a
+    DIFFERENT city in the in-app picker does yield a different exit IP.
     """
-    if not TOGGLE_SCRIPT.exists():
-        raise RuntimeError(f"Toggle script not found at {TOGGLE_SCRIPT}")
-    print("[rotate] Toggling Hotspot Shield via AppleScript GUI driver")
+    if not SWITCH_CITY_SCRIPT.exists():
+        raise RuntimeError(f"Switch-city script not found at {SWITCH_CITY_SCRIPT}")
+    print(f"[rotate] Switching Hotspot Shield to {city!r} via AppleScript")
     result = subprocess.run(
-        ["osascript", str(TOGGLE_SCRIPT)],
+        ["osascript", str(SWITCH_CITY_SCRIPT), city],
         capture_output=True, text=True, check=False, timeout=120,
     )
     out = (result.stdout or "").strip()
     err = (result.stderr or "").strip()
     if result.returncode != 0:
-        raise RuntimeError(f"Toggle script failed (rc={result.returncode}): {err or out}")
-    print(f"[rotate] Toggle result: {out}")
+        raise RuntimeError(f"Switch-city script failed (rc={result.returncode}): {err or out}")
+    print(f"[rotate] Switch result: {out}")
     time.sleep(settle_s)
 
 
@@ -125,15 +125,21 @@ def main() -> int:
         epilog="Any extra args are forwarded verbatim to scraper.py.",
     )
     parser.add_argument("--vpn-name", default=DEFAULT_VPN_NAME,
-                        help=f"NetworkExtension service name (see `scutil --nc list`). Default: {DEFAULT_VPN_NAME!r}")
+                        help=f"NetworkExtension service name (kept for diagnostics). Default: {DEFAULT_VPN_NAME!r}")
+    parser.add_argument("--cities", default=",".join(DEFAULT_CITY_ROTATION),
+                        help="Comma-separated US-city rotation pool (must already be visible "
+                             f"in the Hotspot Shield picker). Default: {','.join(DEFAULT_CITY_ROTATION)}")
     parser.add_argument("--max-rotations", type=int, default=50,
                         help="Stop after this many VPN rotations (safety cap). Default: 50")
     parser.add_argument("--require-ip-change", action="store_true",
-                        help="Abort if cycling the tunnel doesn't actually change the public IP. "
-                             "Useful for verifying Hotspot Shield's Optimal mode is rotating.")
+                        help="Abort if a rotation doesn't actually change the public IP.")
     parser.add_argument("--cooldown-s", type=float, default=10.0,
                         help="Sleep this long between rotations after the IP is verified changed. Default: 10s.")
     args, forwarded = parser.parse_known_args()
+    cities = [c.strip() for c in args.cities.split(",") if c.strip()]
+    if not cities:
+        print("[rotate] no cities provided in --cities", file=sys.stderr)
+        return 1
 
     if not SCRAPER.exists():
         print(f"[rotate] scraper not found at {SCRAPER}", file=sys.stderr)
@@ -166,7 +172,8 @@ def main() -> int:
             print(f"[rotate] Max rotations ({args.max_rotations}) reached; stopping.")
             return 2
 
-        cycle_vpn(args.vpn_name)
+        next_city = cities[rotation_count % len(cities)]
+        switch_to_city(next_city)
         new_ip = wait_for_ip_change(ip, timeout_s=30.0)
         if new_ip == ip or not new_ip:
             print(f"[rotate] IP did not change after rotation (still {new_ip or '<unknown>'}).")

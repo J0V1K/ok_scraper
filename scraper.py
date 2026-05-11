@@ -27,6 +27,16 @@ if sys_path_ocr not in __import__("sys").path:
     __import__("sys").path.insert(0, sys_path_ocr)
 from ocr import ocr_pdf as _ocr_pdf  # noqa: E402
 
+# Cross-scraper heartbeat helper (lives in <repo>/monitor/).
+_repo_root = str(Path(__file__).resolve().parent.parent)
+if _repo_root not in __import__("sys").path:
+    __import__("sys").path.insert(0, _repo_root)
+from monitor.heartbeat import Heartbeat  # noqa: E402
+
+# Heartbeat singleton — populated in main()/worker init, accessed by the
+# day/case loops so per-step state is visible in the monitor dashboard.
+HEARTBEAT: Heartbeat | None = None
+
 # Module-level toggles set by main() and read by download_pdf.
 # Default behavior: OCR every saved PDF, delete the PDF on OCR success.
 RUN_OCR = True
@@ -1001,6 +1011,8 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
     case_started_at = utc_now_iso()
     case_started_perf = time.monotonic()
     print(f"  Scraping {case_num}...")
+    if HEARTBEAT is not None:
+        HEARTBEAT.update(current_case=case_num, current_action="case-start")
     await asyncio.sleep(random.uniform(0.5, 1.5))
     try: await page.goto(case_data['url'], wait_until="commit", timeout=60000)
     except: pass
@@ -1544,6 +1556,9 @@ async def run_scraper_loop(args, context, page, dates: list[date]):
     types = [t.strip().upper() for t in args.type.split(",") if t.strip()]
     for d in dates:
         iso = d.isoformat()
+        if HEARTBEAT is not None:
+            HEARTBEAT.update(current_day=iso, current_case=None,
+                             current_action="day-start")
         if day_is_complete(iso):
             print(f"  {iso}: already complete, skipping (use --force to re-scrape)")
             continue
@@ -1552,6 +1567,9 @@ async def run_scraper_loop(args, context, page, dates: list[date]):
         except Exception as e:
             if str(e) == "IP_RESTRICTED":
                 print("Stopping run: IP needs to clear before resuming.")
+                if HEARTBEAT is not None:
+                    HEARTBEAT.update(current_action="ip_restricted",
+                                     last_error="IP_RESTRICTED")
                 return
             print(f"  {iso}: aborted: {str(e)[:200]}")
 
@@ -1600,6 +1618,9 @@ async def main():
                         help="On the first CF gate in a case, re-navigate to the case-info "
                              "page to renew CF cookies and retry the same PDF once. Trades "
                              "an extra Turnstile solve for more PDFs per case.")
+    parser.add_argument("--worker-id", type=int, default=None,
+                        help="Internal: identifies this child when run under --workers N. "
+                             "Used to name distinct heartbeat files in the monitor.")
     args = parser.parse_args()
 
     # Propagate runtime toggles to module-level state read by download_pdf.
@@ -1674,6 +1695,7 @@ async def main():
                 cmd.extend(["--data-root", str(DATA_ROOT)])
             if args.refresh_on_gate:
                 cmd.append("--refresh-on-gate")
+            cmd.extend(["--worker-id", str(i)])
             log_f = open(log_path, "w")
             proc = subprocess.Popen(cmd, stdout=log_f, stderr=subprocess.STDOUT)
             children.append((i, proc, log_path, log_f, chunk_start, chunk_end))
@@ -1690,37 +1712,54 @@ async def main():
         print("All workers finished.")
         return
 
-    if args.chrome:
-        # CDP-attached system Chrome (debugging fallback). Expect more CF gates.
-        try:
-            pids = subprocess.check_output(f"lsof -i :{DEBUG_PORT} -t", shell=True).decode().split()
-            for pid in pids: os.kill(int(pid), 15); time.sleep(2)
-        except: pass
-        launch_chrome()
-        async with async_playwright() as p:
-            browser = await p.chromium.connect_over_cdp(f"http://localhost:{DEBUG_PORT}")
-            context = browser.contexts[0]
-            page = context.pages[0] if context.pages else await context.new_page()
-            await run_scraper_loop(args, context, page, dates_to_scrape)
-            await browser.close()
-        return
+    global HEARTBEAT
+    HEARTBEAT = Heartbeat(
+        DATA_ROOT, scraper="ok",
+        args=sys.argv[1:],
+        worker_id=args.worker_id,
+    )
+    HEARTBEAT.update(start_date=args.start_date, end_date=args.end_date,
+                     county=args.county, types=args.type,
+                     dates_to_scrape=len(dates_to_scrape))
+    HEARTBEAT.start()
+    try:
+        if args.chrome:
+            # CDP-attached system Chrome (debugging fallback). Expect more CF gates.
+            try:
+                pids = subprocess.check_output(f"lsof -i :{DEBUG_PORT} -t", shell=True).decode().split()
+                for pid in pids: os.kill(int(pid), 15); time.sleep(2)
+            except: pass
+            launch_chrome()
+            async with async_playwright() as p:
+                browser = await p.chromium.connect_over_cdp(f"http://localhost:{DEBUG_PORT}")
+                context = browser.contexts[0]
+                page = context.pages[0] if context.pages else await context.new_page()
+                await run_scraper_loop(args, context, page, dates_to_scrape)
+                await browser.close()
+            HEARTBEAT.close(status="exited", finished_reason="chrome-path-completed")
+            return
 
-    # Default: Camoufox (anti-fingerprint Playwright Firefox build).
-    if not CAMOUFOX_AVAILABLE:
-        print("Error: Camoufox not installed in this venv.")
-        print("Install with: pip install 'camoufox[geoip]'")
-        print("Or use --chrome to fall back to system Chrome via CDP (degraded gate-clearance).")
-        return
-    print(f"Launching Camoufox; will process {len(dates_to_scrape)} weekday(s) "
-          f"({dates_to_scrape[0]} .. {dates_to_scrape[-1]})")
-    async with AsyncCamoufox(
-        headless=False,
-        os="macos",
-        humanize=True,
-    ) as browser:
-        context = await browser.new_context(accept_downloads=True)
-        page = await context.new_page()
-        await run_scraper_loop(args, context, page, dates_to_scrape)
+        # Default: Camoufox (anti-fingerprint Playwright Firefox build).
+        if not CAMOUFOX_AVAILABLE:
+            print("Error: Camoufox not installed in this venv.")
+            print("Install with: pip install 'camoufox[geoip]'")
+            print("Or use --chrome to fall back to system Chrome via CDP (degraded gate-clearance).")
+            HEARTBEAT.close(status="crashed", finished_reason="camoufox-missing")
+            return
+        print(f"Launching Camoufox; will process {len(dates_to_scrape)} weekday(s) "
+              f"({dates_to_scrape[0]} .. {dates_to_scrape[-1]})")
+        async with AsyncCamoufox(
+            headless=False,
+            os="macos",
+            humanize=True,
+        ) as browser:
+            context = await browser.new_context(accept_downloads=True)
+            page = await context.new_page()
+            await run_scraper_loop(args, context, page, dates_to_scrape)
+        HEARTBEAT.close(status="exited", finished_reason="completed")
+    except Exception as exc:
+        HEARTBEAT.close(status="crashed", finished_reason=str(exc)[:200])
+        raise
 
 
 if __name__ == "__main__":
