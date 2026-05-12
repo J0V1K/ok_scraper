@@ -37,6 +37,21 @@ from monitor.heartbeat import Heartbeat  # noqa: E402
 # day/case loops so per-step state is visible in the monitor dashboard.
 HEARTBEAT: Heartbeat | None = None
 
+
+def _probe_public_ip() -> str:
+    """Best-effort fetch of the current public IPv4. Used once at run
+    start to surface in the monitor; under rotate.py each fresh process
+    invocation re-probes after the city switch."""
+    import subprocess
+    try:
+        out = subprocess.run(
+            ["curl", "-s", "--max-time", "5", "https://ipv4.icanhazip.com"],
+            capture_output=True, text=True, check=False, timeout=8,
+        )
+        return out.stdout.strip()
+    except Exception:
+        return ""
+
 # Module-level toggles set by main() and read by download_pdf.
 # Default behavior: OCR every saved PDF, delete the PDF on OCR success.
 RUN_OCR = True
@@ -1350,6 +1365,8 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
                     per_action["download_elapsed_s"] = result_dict.get("elapsed_s")
                 if result_dict.get("ok"):
                     downloaded += 1
+                    if HEARTBEAT is not None:
+                        HEARTBEAT.increment("session_docs_collected")
                     # Provisional: assume PDF was kept on disk. The OCR
                     # finalize pass below replaces this if it was deleted
                     # after successful OCR.
@@ -1443,6 +1460,8 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
     }
     with open(case_dir / "register_of_actions.json", "w") as f:
         json.dump(result, f, indent=2)
+    if HEARTBEAT is not None:
+        HEARTBEAT.increment("session_cases_scraped")
     return result
 
 async def scrape_one_day(context, page, county: str, types: list[str],
@@ -1718,9 +1737,23 @@ async def main():
         args=sys.argv[1:],
         worker_id=args.worker_id,
     )
-    HEARTBEAT.update(start_date=args.start_date, end_date=args.end_date,
-                     county=args.county, types=args.type,
-                     dates_to_scrape=len(dates_to_scrape))
+    HEARTBEAT.update(
+        # Run intent — static for the run's lifetime, so the monitor can
+        # show "OK Tulsa CJ,CV,CF,CM 2025-01-01..2025-12-31, no-filter,
+        # no-cap, refresh-on-gate" at a glance.
+        start_date=args.start_date, end_date=args.end_date,
+        county=args.county, types=args.type,
+        dates_to_scrape=len(dates_to_scrape),
+        no_filter=DISABLE_FILTER, no_cap=DISABLE_CAP,
+        refresh_on_gate=REFRESH_ON_GATE,
+        popup_fallback=ENABLE_POPUP_FALLBACK,
+        rotation_managed=os.environ.get("ROTATE_MANAGED") == "1",
+        current_ip=_probe_public_ip(),
+        # Session counters (cumulative across days in this process; the
+        # monitor renders them next to current_day/case).
+        session_cases_scraped=0,
+        session_docs_collected=0,
+    )
     HEARTBEAT.start()
     try:
         if args.chrome:
