@@ -31,26 +31,11 @@ from ocr import ocr_pdf as _ocr_pdf  # noqa: E402
 _repo_root = str(Path(__file__).resolve().parent.parent)
 if _repo_root not in __import__("sys").path:
     __import__("sys").path.insert(0, _repo_root)
-from monitor.heartbeat import Heartbeat  # noqa: E402
+from monitor.heartbeat import Heartbeat, probe_public_ip, rotation_managed  # noqa: E402
 
 # Heartbeat singleton — populated in main()/worker init, accessed by the
 # day/case loops so per-step state is visible in the monitor dashboard.
 HEARTBEAT: Heartbeat | None = None
-
-
-def _probe_public_ip() -> str:
-    """Best-effort fetch of the current public IPv4. Used once at run
-    start to surface in the monitor; under rotate.py each fresh process
-    invocation re-probes after the city switch."""
-    import subprocess
-    try:
-        out = subprocess.run(
-            ["curl", "-s", "--max-time", "5", "https://ipv4.icanhazip.com"],
-            capture_output=True, text=True, check=False, timeout=8,
-        )
-        return out.stdout.strip()
-    except Exception:
-        return ""
 
 # Module-level toggles set by main() and read by download_pdf.
 # Default behavior: OCR every saved PDF, delete the PDF on OCR success.
@@ -678,6 +663,12 @@ async def wait_for_human_solve(
                "Access Denied" in title:
                 print("\nFATAL ERROR: YOUR IP ADDRESS IS RESTRICTED BY OSCN.\n")
                 raise Exception("IP_RESTRICTED")
+
+            # Detect Case Tracker Redirect (Auth Page)
+            if "CASE TRACKER" in content and "Sign in" in content:
+                print("\n>>> REDIRECT DETECTED: Landed on Case Tracker sign-in page.")
+                print("    This case (likely Criminal) may require authentication or is being gated.")
+                raise Exception("AUTH_REQUIRED")
 
             # Detect "UNABLE TO VERIFY"
             if "UNABLE TO VERIFY" in content:
@@ -1747,8 +1738,8 @@ async def main():
         no_filter=DISABLE_FILTER, no_cap=DISABLE_CAP,
         refresh_on_gate=REFRESH_ON_GATE,
         popup_fallback=ENABLE_POPUP_FALLBACK,
-        rotation_managed=os.environ.get("ROTATE_MANAGED") == "1",
-        current_ip=_probe_public_ip(),
+        rotation_managed=rotation_managed(),
+        current_ip=probe_public_ip(),
         # Session counters (cumulative across days in this process; the
         # monitor renders them next to current_day/case).
         session_cases_scraped=0,

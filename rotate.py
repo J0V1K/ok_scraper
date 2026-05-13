@@ -104,7 +104,7 @@ def run_scraper_once(forwarded_args: list[str]) -> tuple[int, bool]:
     on IP_RESTRICTED already; we additionally inspect the stream so that
     transient failures unrelated to IP can be distinguished.
     """
-    cmd = [sys.executable, "-u", str(SCRAPER), *forwarded_args]
+    cmd = ["/Users/jovik/Desktop/docket_gen/detection_pilot/.venv/bin/python3", "-u", str(SCRAPER), *forwarded_args]
     print(f"[rotate] Launching scraper: {' '.join(cmd)}")
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
     assert proc.stdout is not None
