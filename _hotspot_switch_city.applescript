@@ -76,7 +76,7 @@ on run argv
 
             -- Wait for the dashboard to come back with the Disconnect button
             -- (= connected to the new city).
-            set deadline to (current date) + 35
+            set deadline to (current date) + 75
             set cur to ""
             repeat while (current date) < deadline
                 try

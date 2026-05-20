@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Scraper output data (transfer manually, do not commit)
+data/
+.DS_Store

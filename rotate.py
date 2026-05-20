@@ -172,8 +172,22 @@ def main() -> int:
             print(f"[rotate] Max rotations ({args.max_rotations}) reached; stopping.")
             return 2
 
-        next_city = cities[rotation_count % len(cities)]
-        switch_to_city(next_city)
+        # Try cities in round-robin order; on failure (AppleScript times
+        # out waiting for HSS to reconnect, picker UI churn, etc.), fall
+        # through to the next one rather than crashing the whole loop.
+        switched = False
+        for attempt in range(len(cities)):
+            next_city = cities[(rotation_count + attempt) % len(cities)]
+            try:
+                switch_to_city(next_city)
+                switched = True
+                break
+            except RuntimeError as exc:
+                print(f"[rotate] Switch to {next_city!r} failed: {exc}; trying next city")
+                time.sleep(5)
+        if not switched:
+            print("[rotate] All cities in rotation pool failed to switch; aborting.")
+            return 4
         new_ip = wait_for_ip_change(ip, timeout_s=30.0)
         if new_ip == ip or not new_ip:
             print(f"[rotate] IP did not change after rotation (still {new_ip or '<unknown>'}).")
