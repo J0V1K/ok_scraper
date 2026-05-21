@@ -46,6 +46,8 @@ DISABLE_FILTER = False  # When True, attempt every doc-bearing action (still cap
 DISABLE_CAP = False     # When True, ignore PER_CASE_PDF_CAP — mega-cases will burn through CF budget.
 DOCTYPE_ANNOTATIONS: dict[str, bool | None] | None = None
 DOCTYPE_REVIEW_NEEDED: dict[str, dict] = {}
+PDF_REQUEST_JITTER = (0.05, 0.2)
+CASE_START_JITTER = (0.1, 0.3)
 # Default off: the popup-CF "fallback" path empirically does NOT reliably
 # unlock subsequent session requests, so each cycle costs an OSCN
 # verification credit without producing the document. Default behavior
@@ -1017,7 +1019,7 @@ async def download_pdf(page, action, dest_path, retain_exemplar=False):
         return out
 
     async with DOWNLOAD_SEMAPHORE:
-        await asyncio.sleep(random.uniform(0.3, 0.8))
+        await asyncio.sleep(random.uniform(*PDF_REQUEST_JITTER))
 
         doc_url = action.get("doc_url") or ""
         doc_id = parse_qs(urlparse(doc_url).query).get("bc", [""])[0]
@@ -1179,7 +1181,7 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
     print(f"  Scraping {case_num}...")
     if HEARTBEAT is not None:
         HEARTBEAT.update(current_case=case_num, current_action="case-start")
-    await asyncio.sleep(random.uniform(0.5, 1.5))
+    await asyncio.sleep(random.uniform(*CASE_START_JITTER))
     try: await page.goto(case_data['url'], wait_until="commit", timeout=60000)
     except: pass
 
@@ -1815,12 +1817,16 @@ async def main():
                         help="Use an annotated document-type dictionary/CSV to decide which docket "
                              "codes to download. Unknown/unannotated codes are still downloaded and "
                              f"flagged in <data_root>/_doc_type_review_needed.<worker>.json.")
+    parser.add_argument("--pdf-request-jitter", default="0.05,0.2",
+                        help="Seconds to sleep before each PDF request as min,max. Default: 0.05,0.2.")
+    parser.add_argument("--case-start-jitter", default="0.1,0.3",
+                        help="Seconds to sleep before each case-info navigation as min,max. Default: 0.1,0.3.")
     args = parser.parse_args()
 
     # Propagate runtime toggles to module-level state read by download_pdf.
     global RUN_OCR, KEEP_PDFS, DISABLE_FILTER, DISABLE_CAP, ENABLE_POPUP_FALLBACK, DATA_ROOT, REFRESH_ON_GATE
     global DOCTYPE_ANNOTATIONS
-    global DOC_TYPE_SAMPLING, WORKER_TAG
+    global DOC_TYPE_SAMPLING, WORKER_TAG, PDF_REQUEST_JITTER, CASE_START_JITTER
     RUN_OCR = not args.no_ocr
     KEEP_PDFS = args.keep_pdfs or args.no_ocr
     DISABLE_FILTER = args.no_filter
@@ -1829,6 +1835,20 @@ async def main():
     REFRESH_ON_GATE = args.refresh_on_gate
     DOC_TYPE_SAMPLING = args.doc_type_samples
     WORKER_TAG = f"worker{args.worker_id}" if args.worker_id is not None else "main"
+    try:
+        PDF_REQUEST_JITTER = tuple(float(x) for x in args.pdf_request_jitter.split(",", 1))
+        CASE_START_JITTER = tuple(float(x) for x in args.case_start_jitter.split(",", 1))
+        if len(PDF_REQUEST_JITTER) != 2 or len(CASE_START_JITTER) != 2:
+            raise ValueError
+        if (
+            PDF_REQUEST_JITTER[0] < 0
+            or CASE_START_JITTER[0] < 0
+            or PDF_REQUEST_JITTER[0] > PDF_REQUEST_JITTER[1]
+            or CASE_START_JITTER[0] > CASE_START_JITTER[1]
+        ):
+            raise ValueError
+    except Exception:
+        raise SystemExit("--pdf-request-jitter and --case-start-jitter must be nonnegative min,max seconds")
     if args.data_root:
         DATA_ROOT = Path(args.data_root).expanduser().resolve()
         DATA_ROOT.mkdir(parents=True, exist_ok=True)
@@ -1908,6 +1928,8 @@ async def main():
                 cmd.append("--doc-type-samples")
             if args.doctype_annotations:
                 cmd.extend(["--doctype-annotations", str(args.doctype_annotations)])
+            cmd.extend(["--pdf-request-jitter", args.pdf_request_jitter])
+            cmd.extend(["--case-start-jitter", args.case_start_jitter])
             cmd.extend(["--worker-id", str(i)])
             log_f = open(log_path, "w")
             proc = subprocess.Popen(cmd, stdout=log_f, stderr=subprocess.STDOUT)
