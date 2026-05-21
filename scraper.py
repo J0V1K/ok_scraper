@@ -1,4 +1,5 @@
 import asyncio
+import csv
 import contextlib
 import json
 import os
@@ -43,6 +44,8 @@ RUN_OCR = True
 KEEP_PDFS = False
 DISABLE_FILTER = False  # When True, attempt every doc-bearing action (still capped at PER_CASE_PDF_CAP).
 DISABLE_CAP = False     # When True, ignore PER_CASE_PDF_CAP — mega-cases will burn through CF budget.
+DOCTYPE_ANNOTATIONS: dict[str, bool | None] | None = None
+DOCTYPE_REVIEW_NEEDED: dict[str, dict] = {}
 # Default off: the popup-CF "fallback" path empirically does NOT reliably
 # unlock subsequent session requests, so each cycle costs an OSCN
 # verification credit without producing the document. Default behavior
@@ -95,6 +98,160 @@ TYPE_TO_DCCT = {
 
 # --- Globals ---
 DOWNLOAD_SEMAPHORE = asyncio.Semaphore(3)
+
+# --- Doc-type sampling (opt-in via --doc-type-samples) ---
+# When enabled, the scraper records a per-worker dictionary of OSCN docket
+# `code` -> {count, sample proceedings, text metrics, exemplar PDF path} and
+# retains ONE PDF exemplar per code (skips the post-OCR delete for the first
+# doc of each code). Bootstraps a document-type dictionary a human later
+# annotates high-value vs not. Default OFF -> identical behavior to today.
+DOC_TYPE_SAMPLING = False
+DOC_TYPE_DICT: dict = {}
+EXEMPLAR_CLAIMED: set = set()
+WORKER_TAG = "main"
+MAX_SAMPLE_PROCEEDINGS = 3
+
+
+def _doc_type_dict_path() -> Path:
+    return DATA_ROOT / f"_doc_type_dictionary.{WORKER_TAG}.json"
+
+
+def load_doc_type_dict() -> None:
+    """Seed DOC_TYPE_DICT / EXEMPLAR_CLAIMED from an existing per-worker file so
+    rotate.py relaunches and --force resumes accumulate rather than overwrite."""
+    path = _doc_type_dict_path()
+    if not path.exists():
+        return
+    try:
+        data = json.loads(path.read_text())
+    except Exception:
+        return
+    if isinstance(data, dict):
+        DOC_TYPE_DICT.update(data)
+        for code, rec in data.items():
+            if isinstance(rec, dict) and rec.get("exemplar_relpath"):
+                EXEMPLAR_CLAIMED.add(code)
+
+
+def write_doc_type_dict() -> None:
+    path = _doc_type_dict_path()
+    try:
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(DOC_TYPE_DICT, indent=2, sort_keys=True))
+        tmp.replace(path)
+    except Exception as e:
+        print(f"  doc-type dict write failed: {e}")
+
+
+def update_doc_type_dict(actions: list[dict], filing_iso: str, case_num: str) -> None:
+    """Fold one case's doc-bearing actions into DOC_TYPE_DICT, keyed by OSCN
+    docket `code`. Records counts, sample proceedings, light text metrics, and
+    the relpath of the first retained PDF exemplar per code."""
+    for a in actions:
+        if not a.get("doc_url"):
+            continue
+        code = (a.get("code") or "").strip() or "_UNCODED"
+        rec = DOC_TYPE_DICT.get(code)
+        if rec is None:
+            rec = {
+                "count": 0,
+                "first_seen": utc_now_iso(),
+                "sample_proceedings": [],
+                "exemplar_relpath": None,
+                "text_chars_total": 0,
+                "text_pages_total": 0,
+                "n_with_text": 0,
+            }
+            DOC_TYPE_DICT[code] = rec
+        rec["count"] += 1
+        proc = (a.get("proceedings") or "").strip()
+        if proc and proc not in rec["sample_proceedings"] and len(rec["sample_proceedings"]) < MAX_SAMPLE_PROCEEDINGS:
+            rec["sample_proceedings"].append(proc[:200])
+        chars = a.get("text_chars")
+        if isinstance(chars, int) and chars > 0:
+            rec["text_chars_total"] += chars
+            rec["text_pages_total"] += int(a.get("text_pages") or 0)
+            rec["n_with_text"] += 1
+        if rec["exemplar_relpath"] is None and a.get("doc_filename"):
+            rec["exemplar_relpath"] = f"{filing_iso}/{case_num}/{a['doc_filename']}"
+
+
+def _normalize_doctype_code(code: str | None) -> str:
+    return (code or "").strip().upper() or "_UNCODED"
+
+
+def _parse_annotation_value(value) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return None
+    raw = str(value).strip().lower()
+    if raw in ("true", "yes", "1", "y", "t"):
+        return True
+    if raw in ("false", "no", "0", "n", "f"):
+        return False
+    return None
+
+
+def load_doctype_annotations(path: Path) -> dict[str, bool | None]:
+    """Load code -> high_value annotations from dictionary.json or CSV.
+
+    Accepted inputs:
+      * dictionary.json shaped as {CODE: {"high_value": true|false|null, ...}}
+      * annotations/review CSV with columns code, high_value
+    """
+    annotations: dict[str, bool | None] = {}
+    if path.suffix.lower() == ".json":
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError("doctype annotation JSON must be an object keyed by code")
+        for code, rec in data.items():
+            if isinstance(rec, dict):
+                value = rec.get("high_value")
+            else:
+                value = rec
+            annotations[_normalize_doctype_code(code)] = _parse_annotation_value(value)
+        return annotations
+
+    with path.open(newline="", encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            code = _normalize_doctype_code(row.get("code"))
+            annotations[code] = _parse_annotation_value(row.get("high_value"))
+    return annotations
+
+
+def is_high_value_by_code(code: str | None, proceedings: str = "") -> bool:
+    """Annotation-driven filter with recall-safe default for new codes."""
+    if DOCTYPE_ANNOTATIONS is None:
+        return is_high_value(proceedings)
+    key = _normalize_doctype_code(code)
+    value = DOCTYPE_ANNOTATIONS.get(key)
+    if value is True:
+        return True
+    if value is False:
+        return False
+    rec = DOCTYPE_REVIEW_NEEDED.setdefault(key, {
+        "count": 0,
+        "first_seen": utc_now_iso(),
+        "sample_proceedings": [],
+    })
+    rec["count"] += 1
+    proc = (proceedings or "").strip()
+    if proc and proc not in rec["sample_proceedings"] and len(rec["sample_proceedings"]) < MAX_SAMPLE_PROCEEDINGS:
+        rec["sample_proceedings"].append(proc[:200])
+    return True
+
+
+def write_doctype_review_needed() -> None:
+    if DOCTYPE_ANNOTATIONS is None or not DOCTYPE_REVIEW_NEEDED:
+        return
+    path = DATA_ROOT / f"_doc_type_review_needed.{WORKER_TAG}.json"
+    try:
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(DOCTYPE_REVIEW_NEEDED, indent=2, sort_keys=True), encoding="utf-8")
+        tmp.replace(path)
+    except Exception as e:
+        print(f"  doc-type review-needed write failed: {e}")
 
 # Guardrails so a single big-litigation case can't burn through CF's
 # "failed-verification" budget. Each click on an a.doc-pdf is a request
@@ -763,8 +920,11 @@ async def wait_for_human_solve(
             await asyncio.sleep(0.5); continue
         await asyncio.sleep(0.5)
 
-async def download_pdf(page, action, dest_path):
+async def download_pdf(page, action, dest_path, retain_exemplar=False):
     """Download a PDF; return telemetry dict for the caller to record.
+
+    When `retain_exemplar` is True the saved PDF is NOT deleted after a
+    successful OCR — used to keep one PDF exemplar per document type.
 
     Return shape:
         {"ok": bool, "mode": "session"|"click"|None, "elapsed_s": float,
@@ -847,7 +1007,7 @@ async def download_pdf(page, action, dest_path):
             except Exception as e:
                 out["text_extraction_error"] = f"write failed: {str(e)[:120]}"
 
-        if out["text_extraction_status"] == "ok" and not KEEP_PDFS:
+        if out["text_extraction_status"] == "ok" and not KEEP_PDFS and not retain_exemplar:
             try:
                 dest_path.unlink()
                 out["doc_filename_kept"] = None
@@ -1280,12 +1440,16 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
         doc_filename = None
         per_action = {
             "date": action['date'],
+            "code": action.get('code', ''),
             "proceedings": action['proceedings'],
             "fee": "",
             "doc_url": action['doc_url'],
             "doc_filename": None,
         }
-        if action['doc_url'] and (DISABLE_FILTER or is_high_value(action['proceedings'])) and not capped:
+        keep_by_filter = DISABLE_FILTER or is_high_value_by_code(
+            action.get('code'), action.get('proceedings', '')
+        )
+        if action['doc_url'] and keep_by_filter and not capped:
             doc_id = parse_qs(urlparse(action['doc_url']).query).get('bc', ['doc'])[0]
             doc_filename = f"{action['date']}_{doc_id}.pdf"
             dest = case_dir / doc_filename
@@ -1307,7 +1471,11 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
                 attempts += 1
                 cap_label = "∞" if DISABLE_CAP else str(PER_CASE_PDF_CAP)
                 print(f"    Target found ({attempts}/{cap_label}): {action['proceedings'][:60]}...")
-                result_dict = await download_pdf(page, action, dest)
+                _code = (action.get('code') or '').strip()
+                needs_exemplar = DOC_TYPE_SAMPLING and bool(_code) and _code not in EXEMPLAR_CLAIMED
+                if needs_exemplar:
+                    EXEMPLAR_CLAIMED.add(_code)
+                result_dict = await download_pdf(page, action, dest, retain_exemplar=needs_exemplar)
                 download_telemetry.append({
                     "doc_id": doc_id,
                     "mode": result_dict.get("mode"),
@@ -1343,7 +1511,7 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
                     case_info_refreshes += 1
                     case_info_refresh_elapsed += refresh_elapsed
                     # Retry the download once.
-                    result_dict = await download_pdf(page, action, dest)
+                    result_dict = await download_pdf(page, action, dest, retain_exemplar=needs_exemplar)
                     download_telemetry.append({
                         "doc_id": doc_id,
                         "mode": result_dict.get("mode"),
@@ -1369,6 +1537,8 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
                 else:
                     per_action["download_error"] = result_dict.get("error")
                     consecutive_gates += 1
+                    if needs_exemplar:
+                        EXEMPLAR_CLAIMED.discard(_code)
                 if popup_fallbacks >= MAX_POPUP_FALLBACKS_PER_CASE and not capped:
                     capped = True
                     print(f"    Popup-fallback cap hit ({popup_fallbacks}); CF reputation "
@@ -1402,8 +1572,13 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
                     per_action[k] = ocr_result[k]
             # Finalize doc_filename based on whether OCR kept/deleted the PDF.
             kept_pdf_name = ocr_result.get("doc_filename_kept")
-            if kept_pdf_name is None:
+            if "doc_filename_kept" in ocr_result and kept_pdf_name is None:
                 per_action["doc_filename"] = None
+
+    if DOC_TYPE_SAMPLING:
+        update_doc_type_dict(final_actions, filing_iso, case_num)
+        write_doc_type_dict()
+    write_doctype_review_needed()
 
     finished_at = utc_now_iso()
     elapsed_s = round(time.monotonic() - case_started_perf, 3)
@@ -1631,20 +1806,44 @@ async def main():
     parser.add_argument("--worker-id", type=int, default=None,
                         help="Internal: identifies this child when run under --workers N. "
                              "Used to name distinct heartbeat files in the monitor.")
+    parser.add_argument("--doc-type-samples", action="store_true",
+                        help="Build a per-worker document-type dictionary keyed by OSCN docket "
+                             "code (<data_root>/_doc_type_dictionary.<worker>.json) and retain one "
+                             "PDF exemplar per code (skips post-OCR delete for the first doc of each "
+                             "code). For bootstrapping a doc-type filter; pair with --no-filter --no-cap.")
+    parser.add_argument("--doctype-annotations", type=Path, default=None,
+                        help="Use an annotated document-type dictionary/CSV to decide which docket "
+                             "codes to download. Unknown/unannotated codes are still downloaded and "
+                             f"flagged in <data_root>/_doc_type_review_needed.<worker>.json.")
     args = parser.parse_args()
 
     # Propagate runtime toggles to module-level state read by download_pdf.
     global RUN_OCR, KEEP_PDFS, DISABLE_FILTER, DISABLE_CAP, ENABLE_POPUP_FALLBACK, DATA_ROOT, REFRESH_ON_GATE
+    global DOCTYPE_ANNOTATIONS
+    global DOC_TYPE_SAMPLING, WORKER_TAG
     RUN_OCR = not args.no_ocr
     KEEP_PDFS = args.keep_pdfs or args.no_ocr
     DISABLE_FILTER = args.no_filter
     DISABLE_CAP = args.no_cap
     ENABLE_POPUP_FALLBACK = args.enable_popup_fallback
     REFRESH_ON_GATE = args.refresh_on_gate
+    DOC_TYPE_SAMPLING = args.doc_type_samples
+    WORKER_TAG = f"worker{args.worker_id}" if args.worker_id is not None else "main"
     if args.data_root:
         DATA_ROOT = Path(args.data_root).expanduser().resolve()
         DATA_ROOT.mkdir(parents=True, exist_ok=True)
         print(f"Using data root: {DATA_ROOT}")
+    if DOC_TYPE_SAMPLING:
+        load_doc_type_dict()
+        print(f"Doc-type sampling ON -> {_doc_type_dict_path()} "
+              f"({len(DOC_TYPE_DICT)} codes already known)")
+    if args.doctype_annotations:
+        ann_path = args.doctype_annotations.expanduser().resolve()
+        DOCTYPE_ANNOTATIONS = load_doctype_annotations(ann_path)
+        annotated = sum(1 for v in DOCTYPE_ANNOTATIONS.values() if v is not None)
+        high = sum(1 for v in DOCTYPE_ANNOTATIONS.values() if v is True)
+        print(f"Doc-type code filter ON -> {ann_path} "
+              f"({annotated}/{len(DOCTYPE_ANNOTATIONS)} annotated, {high} high-value)")
 
     # Resolve the weekday set
     all_weekdays = weekday_dates(args.start_date, args.end_date)
@@ -1705,6 +1904,10 @@ async def main():
                 cmd.extend(["--data-root", str(DATA_ROOT)])
             if args.refresh_on_gate:
                 cmd.append("--refresh-on-gate")
+            if args.doc_type_samples:
+                cmd.append("--doc-type-samples")
+            if args.doctype_annotations:
+                cmd.extend(["--doctype-annotations", str(args.doctype_annotations)])
             cmd.extend(["--worker-id", str(i)])
             log_f = open(log_path, "w")
             proc = subprocess.Popen(cmd, stdout=log_f, stderr=subprocess.STDOUT)
