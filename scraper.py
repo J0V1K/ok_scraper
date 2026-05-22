@@ -48,6 +48,7 @@ DOCTYPE_ANNOTATIONS: dict[str, bool | None] | None = None
 DOCTYPE_REVIEW_NEEDED: dict[str, dict] = {}
 PDF_REQUEST_JITTER = (0.05, 0.2)
 CASE_START_JITTER = (0.1, 0.3)
+CASE_INFO_MAX_WAIT_S = 90
 # Default off: the popup-CF "fallback" path empirically does NOT reliably
 # unlock subsequent session requests, so each cycle costs an OSCN
 # verification credit without producing the document. Default behavior
@@ -1185,7 +1186,15 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
     try: await page.goto(case_data['url'], wait_until="commit", timeout=60000)
     except: pass
 
-    await wait_for_human_solve(page, target_text="Case Information")
+    try:
+        await wait_for_human_solve(
+            page,
+            target_text="Case Information",
+            max_wait_s=CASE_INFO_MAX_WAIT_S,
+        )
+    except TimeoutError as e:
+        print(f"    Case-info wait timed out after {CASE_INFO_MAX_WAIT_S}s: {e}")
+        raise Exception("IP_RESTRICTED")
 
     # wait_for_human_solve declares the page cleared when it sees
     # "Case Information" in the document, but that phrase appears in a
@@ -1506,7 +1515,11 @@ async def scrape_case_detail(context, page, case_data, hint_filing_iso: str = ""
                     except Exception:
                         pass
                     try:
-                        await wait_for_human_solve(page, target_text="Case Information")
+                        await wait_for_human_solve(
+                            page,
+                            target_text="Case Information",
+                            max_wait_s=CASE_INFO_MAX_WAIT_S,
+                        )
                     except Exception as e:
                         print(f"    Case-info refresh failed: {e}; treating as gate")
                     refresh_elapsed = round(time.monotonic() - refresh_started, 2)
@@ -1821,12 +1834,15 @@ async def main():
                         help="Seconds to sleep before each PDF request as min,max. Default: 0.05,0.2.")
     parser.add_argument("--case-start-jitter", default="0.1,0.3",
                         help="Seconds to sleep before each case-info navigation as min,max. Default: 0.1,0.3.")
+    parser.add_argument("--case-info-max-wait-s", type=int, default=90,
+                        help="Max seconds to wait for a case-info page/Turnstile clear before treating "
+                             "the IP as bad and letting rotate.py switch VPN exits. Default: 90.")
     args = parser.parse_args()
 
     # Propagate runtime toggles to module-level state read by download_pdf.
     global RUN_OCR, KEEP_PDFS, DISABLE_FILTER, DISABLE_CAP, ENABLE_POPUP_FALLBACK, DATA_ROOT, REFRESH_ON_GATE
     global DOCTYPE_ANNOTATIONS
-    global DOC_TYPE_SAMPLING, WORKER_TAG, PDF_REQUEST_JITTER, CASE_START_JITTER
+    global DOC_TYPE_SAMPLING, WORKER_TAG, PDF_REQUEST_JITTER, CASE_START_JITTER, CASE_INFO_MAX_WAIT_S
     RUN_OCR = not args.no_ocr
     KEEP_PDFS = args.keep_pdfs or args.no_ocr
     DISABLE_FILTER = args.no_filter
@@ -1835,6 +1851,7 @@ async def main():
     REFRESH_ON_GATE = args.refresh_on_gate
     DOC_TYPE_SAMPLING = args.doc_type_samples
     WORKER_TAG = f"worker{args.worker_id}" if args.worker_id is not None else "main"
+    CASE_INFO_MAX_WAIT_S = args.case_info_max_wait_s
     try:
         PDF_REQUEST_JITTER = tuple(float(x) for x in args.pdf_request_jitter.split(",", 1))
         CASE_START_JITTER = tuple(float(x) for x in args.case_start_jitter.split(",", 1))
@@ -1930,6 +1947,7 @@ async def main():
                 cmd.extend(["--doctype-annotations", str(args.doctype_annotations)])
             cmd.extend(["--pdf-request-jitter", args.pdf_request_jitter])
             cmd.extend(["--case-start-jitter", args.case_start_jitter])
+            cmd.extend(["--case-info-max-wait-s", str(args.case_info_max_wait_s)])
             cmd.extend(["--worker-id", str(i)])
             log_f = open(log_path, "w")
             proc = subprocess.Popen(cmd, stdout=log_f, stderr=subprocess.STDOUT)
