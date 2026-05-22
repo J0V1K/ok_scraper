@@ -652,8 +652,13 @@ async def _click_turnstile_checkbox(page):
 
     iframe_selectors = [
         "iframe[src*='turnstile']",
+        "iframe[src*='challenges.cloudflare.com']",
+        "iframe[src*='cloudflare']",
         "iframe[title*='Widget']",
+        "iframe[title*='widget']",
         "iframe[title*='challenge']",
+        "iframe[title*='Challenge']",
+        "iframe[allow*='cross-origin-isolated']",
     ]
 
     # Best path: drill into the Turnstile iframe and click the actual
@@ -682,9 +687,9 @@ async def _click_turnstile_checkbox(page):
         except Exception:
             continue
 
-    # Fallback: fixed-offset click near the LEFT of the Turnstile iframe
-    # (Cloudflare's standard widget renders the checkbox ~30px from the
-    # left edge, vertically centered). Center-clicks miss it entirely.
+    # Fallback: coordinate clicks near the LEFT of the Turnstile iframe.
+    # Cloudflare's standard widget renders the checkbox near the left edge,
+    # but the exact x offset varies across challenge variants and zoom.
     for selector in iframe_selectors:
         try:
             iframe = page.locator(selector).first
@@ -693,10 +698,52 @@ async def _click_turnstile_checkbox(page):
             box = await iframe.bounding_box()
             if not box:
                 continue
-            cx = box["x"] + 30
             cy = box["y"] + box["height"] / 2
-            await page.mouse.click(cx, cy)
+            for offset in (28, 38, 50, 64, 80):
+                cx = box["x"] + min(offset, max(5, box["width"] - 5))
+                await page.mouse.move(cx, cy, steps=4)
+                await page.mouse.click(cx, cy, delay=75)
+                await asyncio.sleep(0.25)
+                try:
+                    response = await page.locator('[name="cf-turnstile-response"]').first.input_value(timeout=300)
+                    if response and len(response) > 10:
+                        return f"iframe-checkbox-offset:{selector}+{offset}"
+                except Exception:
+                    pass
             return f"iframe-checkbox-offset:{selector}"
+        except Exception:
+            continue
+
+    # Last-resort iframe scan: some Turnstile variants expose a generic
+    # cross-origin iframe with no useful title/src. Click likely checkbox
+    # offsets in visible, widget-sized iframes.
+    try:
+        iframe_count = await page.locator("iframe").count()
+    except Exception:
+        iframe_count = 0
+    for i in range(iframe_count):
+        try:
+            iframe = page.locator("iframe").nth(i)
+            if not await iframe.is_visible(timeout=500):
+                continue
+            box = await iframe.bounding_box()
+            if not box:
+                continue
+            if box["width"] < 120 or box["height"] < 40:
+                continue
+            cy = box["y"] + box["height"] / 2
+            for offset in (28, 38, 50, 64, 80):
+                cx = box["x"] + min(offset, max(5, box["width"] - 5))
+                await page.mouse.move(cx, cy, steps=4)
+                await page.mouse.click(cx, cy, delay=75)
+                await asyncio.sleep(0.25)
+                try:
+                    response = await page.locator('[name="cf-turnstile-response"]').first.input_value(timeout=300)
+                    if response and len(response) > 10:
+                        return f"iframe-scan:{i}+{offset}"
+                except Exception:
+                    pass
+            return f"iframe-scan:{i}"
         except Exception:
             continue
 
