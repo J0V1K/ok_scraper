@@ -966,7 +966,8 @@ async def wait_for_human_solve(
             if str(e) == "PAGE_CLOSED" and closed_ok:
                 print("Challenge page closed; treating as success")
                 return True
-            if str(e) == "IP_RESTRICTED": raise e
+            if isinstance(e, TimeoutError) or str(e) == "IP_RESTRICTED":
+                raise e
             await asyncio.sleep(0.5); continue
         await asyncio.sleep(0.5)
 
