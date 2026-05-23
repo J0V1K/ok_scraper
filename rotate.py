@@ -129,8 +129,8 @@ def main() -> int:
     parser.add_argument("--cities", default=",".join(DEFAULT_CITY_ROTATION),
                         help="Comma-separated US-city rotation pool (must already be visible "
                              f"in the Hotspot Shield picker). Default: {','.join(DEFAULT_CITY_ROTATION)}")
-    parser.add_argument("--max-rotations", type=int, default=50,
-                        help="Stop after this many VPN rotations (safety cap). Default: 50")
+    parser.add_argument("--max-rotations", type=int, default=500,
+                        help="Stop after this many VPN rotations (safety cap). Default: 500")
     parser.add_argument("--require-ip-change", action="store_true",
                         help="Abort if a rotation doesn't actually change the public IP.")
     parser.add_argument("--cooldown-s", type=float, default=10.0,
