@@ -400,7 +400,12 @@ def load_failed_cases(filing_iso: str) -> list[dict]:
 
 def day_is_complete(filing_iso: str) -> bool:
     """A day is complete if day_summary exists and reports no failures and
-    scraped_cases >= total_cases. Used by auto-resume."""
+    scraped_cases >= total_cases. Used by auto-resume.
+
+    Known-empty days are complete too: a previous search that recorded
+    total_cases=0, scraped_cases=0, failed_cases=0 should not be queried
+    again on every resumed long run.
+    """
     path = day_dir(filing_iso) / "day_summary.json"
     if not path.exists():
         return False
@@ -408,10 +413,12 @@ def day_is_complete(filing_iso: str) -> bool:
         s = json.loads(path.read_text())
     except Exception:
         return False
+    if "total_cases" not in s:
+        return False
     total = int(s.get("total_cases", 0) or 0)
     scraped = int(s.get("scraped_cases", 0) or 0)
     failed = int(s.get("failed_cases", 0) or 0)
-    return total > 0 and scraped >= total and failed == 0
+    return scraped >= total and failed == 0
 
 
 def find_resume_dates(start_iso: str, end_iso: str) -> list[date]:
