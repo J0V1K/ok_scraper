@@ -64,6 +64,41 @@ CASE_URL = f"{BASE_URL}/GetCaseInformation.aspx"
 DOC_URL = f"{BASE_URL}/GetDocument.aspx"
 DATA_ROOT = Path(__file__).resolve().parent / "data"
 
+# Browser windows should stay visible for challenge solving without
+# occupying the whole desktop. Use the bottom-right half of the main screen.
+def browser_window_bounds() -> tuple[int, int, int, int]:
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", 'tell application "Finder" to get bounds of window of desktop'],
+            capture_output=True,
+            text=True,
+            timeout=3,
+            check=False,
+        )
+        parts = [int(p.strip()) for p in result.stdout.replace("{", "").replace("}", "").split(",")]
+        if len(parts) == 4:
+            left, top, right, bottom = parts
+            width = max(720, (right - left) // 2)
+            height = max(450, (bottom - top) // 2)
+            return left + width, top + height, width, height
+    except Exception:
+        pass
+    return 720, 450, 720, 450
+
+
+async def place_browser_page(page) -> None:
+    x, y, width, height = browser_window_bounds()
+    try:
+        await page.evaluate(
+            """bounds => {
+                window.moveTo(bounds.x, bounds.y);
+                window.resizeTo(bounds.width, bounds.height);
+            }""",
+            {"x": x, "y": y, "width": width, "height": height},
+        )
+    except Exception:
+        pass
+
 # OSCN's Results.aspx caps responses at ~500 rows. If a single-day search
 # comes back at or above this watermark we dump the raw HTML so we know
 # the cap was real (vs. saturated by archived noise that filters out).
@@ -623,6 +658,7 @@ async def search_one_day(page, county: str, types: list[str], filing_iso: str) -
 def launch_chrome():
     """Launch a real Chrome instance with remote debugging."""
     CHROME_PROFILE.mkdir(exist_ok=True)
+    x, y, width, height = browser_window_bounds()
     try:
         subprocess.check_output(f"lsof -i :{DEBUG_PORT}", shell=True)
         return
@@ -636,6 +672,8 @@ def launch_chrome():
         f"--remote-debugging-port={DEBUG_PORT}",
         "--no-first-run",
         "--no-default-browser-check",
+        f"--window-size={width},{height}",
+        f"--window-position={x},{y}",
     ]
     subprocess.Popen(cmd)
     time.sleep(5)
@@ -1813,7 +1851,8 @@ async def run_scraper_loop(args, context, page, dates: list[date]):
         iso = d.isoformat()
         if HEARTBEAT is not None:
             HEARTBEAT.update(current_day=iso, current_case=None,
-                             current_action="day-start")
+                             current_action="day-start",
+                             current_ip=probe_public_ip())
         if day_is_complete(iso):
             print(f"  {iso}: already complete, skipping (use --force to re-scrape)")
             continue
@@ -2070,13 +2109,16 @@ async def main():
             return
         print(f"Launching Camoufox; will process {len(dates_to_scrape)} weekday(s) "
               f"({dates_to_scrape[0]} .. {dates_to_scrape[-1]})")
+        _, _, width, height = browser_window_bounds()
         async with AsyncCamoufox(
             headless=False,
             os="macos",
             humanize=True,
+            window=(width, height),
         ) as browser:
             context = await browser.new_context(accept_downloads=True)
             page = await context.new_page()
+            await place_browser_page(page)
             await run_scraper_loop(args, context, page, dates_to_scrape)
         HEARTBEAT.close(status="exited", finished_reason="completed")
     except Exception as exc:
