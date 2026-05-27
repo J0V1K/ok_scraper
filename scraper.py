@@ -748,8 +748,8 @@ async def _click_turnstile_checkbox(page):
             ]:
                 try:
                     el = frame.locator(inner).first
-                    if await el.count() and await el.is_visible(timeout=1000):
-                        await el.click(timeout=1500)
+                    if await el.count() and await el.is_visible(timeout=500):
+                        await el.click(timeout=700)
                         return f"frame:{selector} > {inner}"
                 except Exception:
                     continue
@@ -770,9 +770,9 @@ async def _click_turnstile_checkbox(page):
             cy = box["y"] + box["height"] / 2
             for offset in (28, 38, 50, 64, 80):
                 cx = box["x"] + min(offset, max(5, box["width"] - 5))
-                await page.mouse.move(cx, cy, steps=4)
-                await page.mouse.click(cx, cy, delay=75)
-                await asyncio.sleep(0.25)
+                await page.mouse.move(cx, cy, steps=2)
+                await page.mouse.click(cx, cy, delay=25)
+                await asyncio.sleep(0.08)
                 if await _turnstile_response_present(page):
                     return f"iframe-checkbox-offset:{selector}+{offset}"
             return f"iframe-checkbox-offset:{selector}"
@@ -789,7 +789,7 @@ async def _click_turnstile_checkbox(page):
     for i in range(iframe_count):
         try:
             iframe = page.locator("iframe").nth(i)
-            if not await iframe.is_visible(timeout=500):
+            if not await iframe.is_visible(timeout=300):
                 continue
             box = await iframe.bounding_box()
             if not box:
@@ -799,9 +799,9 @@ async def _click_turnstile_checkbox(page):
             cy = box["y"] + box["height"] / 2
             for offset in (28, 38, 50, 64, 80):
                 cx = box["x"] + min(offset, max(5, box["width"] - 5))
-                await page.mouse.move(cx, cy, steps=4)
-                await page.mouse.click(cx, cy, delay=75)
-                await asyncio.sleep(0.25)
+                await page.mouse.move(cx, cy, steps=2)
+                await page.mouse.click(cx, cy, delay=25)
+                await asyncio.sleep(0.08)
                 if await _turnstile_response_present(page):
                     return f"iframe-scan:{i}+{offset}"
             return f"iframe-scan:{i}"
@@ -819,7 +819,7 @@ async def _click_turnstile_checkbox(page):
             widget = page.locator(selector).first
             if await widget.count() == 0:
                 continue
-            if not await widget.is_visible(timeout=500):
+            if not await widget.is_visible(timeout=300):
                 continue
             box = await widget.bounding_box()
             if not box:
@@ -827,9 +827,9 @@ async def _click_turnstile_checkbox(page):
             cy = box["y"] + box["height"] / 2
             for offset in (20, 28, 38, 50, 64, 80):
                 cx = box["x"] + min(offset, max(5, box["width"] - 5))
-                await page.mouse.move(cx, cy, steps=4)
-                await page.mouse.click(cx, cy, delay=75)
-                await asyncio.sleep(0.35)
+                await page.mouse.move(cx, cy, steps=2)
+                await page.mouse.click(cx, cy, delay=25)
+                await asyncio.sleep(0.12)
                 if await _turnstile_response_present(page):
                     return f"widget-offset:{selector}+{offset}"
             return f"widget-offset:{selector}"
@@ -865,7 +865,7 @@ async def _click_turnstile_checkbox(page):
             return selector_hit
         try:
             text_locator = scope.get_by_text(re.compile(r"verify you are human|click to verify", re.I)).first
-            text_timeout_ms = 1500
+            text_timeout_ms = 700
             if await text_locator.count() and await text_locator.is_visible(timeout=text_timeout_ms):
                 await text_locator.click(timeout=text_timeout_ms, force=True)
                 return "text:verify-you-are-human"
@@ -889,22 +889,22 @@ async def _submit_challenge_page(page):
                 "a.btn-continue",
                 "button",
             ],
-            timeout_ms=2000,
+            timeout_ms=800,
             force=True,
         )
         if selector_hit:
             return selector_hit
         try:
             button = scope.get_by_role("button", name=re.compile(r"submit|continue|search|view|download", re.I)).first
-            if await button.count() and await button.is_visible(timeout=2000):
-                await button.click(timeout=2000, force=True)
+            if await button.count() and await button.is_visible(timeout=800):
+                await button.click(timeout=800, force=True)
                 return "role:button"
         except Exception:
             pass
         try:
             link = scope.get_by_role("link", name=re.compile(r"submit|continue|search|view|download", re.I)).first
-            if await link.count() and await link.is_visible(timeout=2000):
-                await link.click(timeout=2000, force=True)
+            if await link.count() and await link.is_visible(timeout=800):
+                await link.click(timeout=800, force=True)
                 return "role:link"
         except Exception:
             pass
@@ -1009,7 +1009,7 @@ async def wait_for_human_solve(
                         submitted_at = time.monotonic(); continue
                     
                     if submitted_at == 0:
-                        print("Turnstile solved! Finding submit button..."); await asyncio.sleep(0.8)
+                        print("Turnstile solved! Finding submit button..."); await asyncio.sleep(0.2)
                         click_res = await _submit_challenge_page(page)
                         if click_res:
                             print(f">>> Submission triggered via {click_res}."); 
@@ -1022,7 +1022,7 @@ async def wait_for_human_solve(
                 if elapsed > 0 and elapsed % 5 == 0:
                     status = "Solved, waiting nav" if is_solved else "Solve in Chrome"
                     print(f"  ... {elapsed}s, {status}, title: {title}")
-                await asyncio.sleep(0.5); continue
+                await asyncio.sleep(0.2); continue
             
             submitted_at = 0
             submit_reload_count = 0
@@ -1063,8 +1063,8 @@ async def wait_for_human_solve(
                 return True
             if isinstance(e, TimeoutError) or str(e) == "IP_RESTRICTED":
                 raise e
-            await asyncio.sleep(0.5); continue
-        await asyncio.sleep(0.5)
+            await asyncio.sleep(0.2); continue
+        await asyncio.sleep(0.2)
 
 async def download_pdf(page, action, dest_path, retain_exemplar=False):
     """Download a PDF; return telemetry dict for the caller to record.
