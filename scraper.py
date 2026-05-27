@@ -716,8 +716,64 @@ async def _turnstile_response_present(page):
     except Exception:
         return False
 
+async def _click_box_offsets(page, box, offsets, label, *, settle_s=0.04):
+    cy = box["y"] + box["height"] / 2
+    for offset in offsets:
+        cx = box["x"] + min(offset, max(5, box["width"] - 5))
+        await page.mouse.click(cx, cy, delay=0)
+        await asyncio.sleep(settle_s)
+        if await _turnstile_response_present(page):
+            return f"{label}+{offset}"
+    return label
+
+async def _quick_click_visible_gate(page):
+    for selector in [
+        "[class*='turnstile']",
+        ".cf-turnstile",
+        ".g-recaptcha",
+        "#cf-turnstile-wrapper",
+        "#challenge-stage",
+        "[id^='cf-chl-widget']",
+    ]:
+        try:
+            widget = page.locator(selector).first
+            if await widget.count() == 0:
+                continue
+            if not await widget.is_visible(timeout=100):
+                continue
+            box = await widget.bounding_box()
+            if not box:
+                continue
+            return await _click_box_offsets(
+                page, box, (24, 32, 44, 60), f"fast-widget:{selector}"
+            )
+        except Exception:
+            continue
+
+    try:
+        viewport = page.viewport_size or {}
+        width = viewport.get("width") or await page.evaluate("() => window.innerWidth")
+        height = viewport.get("height") or await page.evaluate("() => window.innerHeight")
+        for cx, cy in [
+            (width / 2 - 130, height * 0.40),
+            (width / 2 - 105, height * 0.40),
+            (width / 2 - 130, height * 0.46),
+            (52, 202),
+            (80, 202),
+        ]:
+            await page.mouse.click(max(20, cx), max(40, cy), delay=0)
+            await asyncio.sleep(0.04)
+            if await _turnstile_response_present(page):
+                return f"fast-viewport:{int(cx)},{int(cy)}"
+        return "fast-viewport"
+    except Exception:
+        return None
+
 async def _click_turnstile_checkbox(page):
     scopes = [page, *page.frames]
+    fast_click = await _quick_click_visible_gate(page)
+    if fast_click:
+        return fast_click
 
     iframe_selectors = [
         "iframe[src*='turnstile']",
