@@ -972,8 +972,37 @@ async def wait_for_human_solve(
                 print("\n>>> VERIFICATION ERROR: Reloading page..."); await page.reload(); await asyncio.sleep(3)
                 submitted_at = 0; submit_reload_count = 0; continue
 
-            # Identify challenge
             content_lower = content.lower()
+            on_oscn_known_path = (
+                "getcaseinformation.aspx" in url_lower
+                or "getdocument.aspx" in url_lower
+                or "results.aspx" in url_lower
+            )
+            success_indicators = [
+                target_text in content,
+                "OSCN Search Results" in title,
+                "Search Results" in title and "oscn.net" in url_lower,
+                "docketlist" in content_lower,
+                "Case Information" in content,
+                "OSCN Case Details" in title,
+                # Search-results-page structural markers (class names in
+                # the HTML). Robust against title/text variations.
+                "resulttablerow" in content_lower,
+                "result_casenumber" in content_lower,
+                "%PDF-" in content[:100],
+                "getdocument.aspx" in url_lower and "turnstile" not in content_lower,
+                # Fallback: we navigated to a known OSCN endpoint and the
+                # page rendered a non-trivial body. Some cleared OSCN pages
+                # still retain Cloudflare script strings in the HTML, so
+                # success must win before challenge-marker checks.
+                on_oscn_known_path and len(content) > 5000,
+            ]
+
+            if any(success_indicators):
+                print(f"Challenge cleared! Detected: {title}")
+                return True
+
+            # Identify challenge only after ruling out known-good OSCN pages.
             is_challenged = (
                 "Turnstile" in title
                 or "Just a moment" in title
@@ -1026,34 +1055,12 @@ async def wait_for_human_solve(
             
             submitted_at = 0
             submit_reload_count = 0
-            on_oscn_known_path = (
-                "getcaseinformation.aspx" in url_lower
-                or "getdocument.aspx" in url_lower
-                or "results.aspx" in url_lower
-            )
             no_turnstile_marker = (
                 "turnstile" not in content_lower
                 and "challenge-platform" not in content_lower
                 and "just a moment" not in title.lower()
             )
-            success_indicators = [
-                target_text in content,
-                "docketlist" in content_lower,
-                "Case Information" in content,
-                # Search-results-page structural markers (class names in
-                # the HTML). Robust against title/text variations.
-                "resulttablerow" in content_lower,
-                "result_casenumber" in content_lower,
-                "%PDF-" in content[:100],
-                "getdocument.aspx" in url_lower and "turnstile" not in content_lower,
-                # Fallback: we navigated to a known OSCN endpoint, the page
-                # rendered a non-trivial body, and no challenge markers
-                # remain. Catches search results, case info, and document
-                # endpoints with layout variations we haven't seen.
-                on_oscn_known_path and no_turnstile_marker and len(content) > 5000,
-            ]
-
-            if any(success_indicators):
+            if on_oscn_known_path and no_turnstile_marker and len(content) > 5000:
                 print(f"Challenge cleared! Detected: {title}")
                 return True
                 
