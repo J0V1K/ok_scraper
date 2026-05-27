@@ -697,6 +697,25 @@ async def _click_visible(scope, selectors, *, timeout_ms=1500, force=False):
             continue
     return None
 
+async def _turnstile_response_present(page):
+    try:
+        return await page.evaluate(
+            """() => {
+                const responses = [
+                    document.querySelector('[name="cf-turnstile-response"]'),
+                    ...document.querySelectorAll(
+                        "input[type='hidden'][id^='cf-chl-widget'][id$='_response'], " +
+                        "input[type='hidden'][id^='cf-chl-widget'][id$='_g_response']"
+                    ),
+                ];
+                return responses.some(
+                    response => response && response.value && response.value.length > 10
+                );
+            }"""
+        )
+    except Exception:
+        return False
+
 async def _click_turnstile_checkbox(page):
     scopes = [page, *page.frames]
 
@@ -754,12 +773,8 @@ async def _click_turnstile_checkbox(page):
                 await page.mouse.move(cx, cy, steps=4)
                 await page.mouse.click(cx, cy, delay=75)
                 await asyncio.sleep(0.25)
-                try:
-                    response = await page.locator('[name="cf-turnstile-response"]').first.input_value(timeout=300)
-                    if response and len(response) > 10:
-                        return f"iframe-checkbox-offset:{selector}+{offset}"
-                except Exception:
-                    pass
+                if await _turnstile_response_present(page):
+                    return f"iframe-checkbox-offset:{selector}+{offset}"
             return f"iframe-checkbox-offset:{selector}"
         except Exception:
             continue
@@ -787,13 +802,37 @@ async def _click_turnstile_checkbox(page):
                 await page.mouse.move(cx, cy, steps=4)
                 await page.mouse.click(cx, cy, delay=75)
                 await asyncio.sleep(0.25)
-                try:
-                    response = await page.locator('[name="cf-turnstile-response"]').first.input_value(timeout=300)
-                    if response and len(response) > 10:
-                        return f"iframe-scan:{i}+{offset}"
-                except Exception:
-                    pass
+                if await _turnstile_response_present(page):
+                    return f"iframe-scan:{i}+{offset}"
             return f"iframe-scan:{i}"
+        except Exception:
+            continue
+
+    widget_selectors = [
+        ".g-recaptcha",
+        "[class*='turnstile']",
+        "[id^='cf-chl-widget']",
+        "#cf-chl-widget",
+    ]
+    for selector in widget_selectors:
+        try:
+            widget = page.locator(selector).first
+            if await widget.count() == 0:
+                continue
+            if not await widget.is_visible(timeout=500):
+                continue
+            box = await widget.bounding_box()
+            if not box:
+                continue
+            cy = box["y"] + box["height"] / 2
+            for offset in (20, 28, 38, 50, 64, 80):
+                cx = box["x"] + min(offset, max(5, box["width"] - 5))
+                await page.mouse.move(cx, cy, steps=4)
+                await page.mouse.click(cx, cy, delay=75)
+                await asyncio.sleep(0.35)
+                if await _turnstile_response_present(page):
+                    return f"widget-offset:{selector}+{offset}"
+            return f"widget-offset:{selector}"
         except Exception:
             continue
 
@@ -803,6 +842,7 @@ async def _click_turnstile_checkbox(page):
             "#challenge-stage",
             "#cf-turnstile-wrapper",
             ".cf-turnstile",
+            ".g-recaptcha",
         ],
         force=True,
     )
@@ -933,13 +973,19 @@ async def wait_for_human_solve(
                 submitted_at = 0; submit_reload_count = 0; continue
 
             # Identify challenge
-            is_challenged = ("Turnstile" in title or "Just a moment" in title or "challenge-platform" in content)
+            content_lower = content.lower()
+            is_challenged = (
+                "Turnstile" in title
+                or "Just a moment" in title
+                or "Cloudflare" in title
+                or "challenge-platform" in content
+                or "turnstile" in content_lower
+                or "verify you are human" in content_lower
+                or "follow the prompt" in content_lower
+            )
             if is_challenged:
                 # 1. Check if Turnstile is already solved
-                is_solved = await page.evaluate("""() => {
-                    const response = document.querySelector('[name="cf-turnstile-response"]');
-                    return response && response.value && response.value.length > 10;
-                }""")
+                is_solved = await _turnstile_response_present(page)
 
                 # 2. If NOT solved, try to click the checkbox autonomously
                 if not is_solved:
@@ -980,7 +1026,6 @@ async def wait_for_human_solve(
             
             submitted_at = 0
             submit_reload_count = 0
-            content_lower = content.lower()
             on_oscn_known_path = (
                 "getcaseinformation.aspx" in url_lower
                 or "getdocument.aspx" in url_lower
