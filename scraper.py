@@ -453,6 +453,11 @@ def day_is_complete(filing_iso: str) -> bool:
     total = int(s.get("total_cases", 0) or 0)
     scraped = int(s.get("scraped_cases", 0) or 0)
     failed = int(s.get("failed_cases", 0) or 0)
+    if total == 0 and scraped == 0 and failed == 0 and s.get("raw_by_type") == {}:
+        # A legitimate zero-case day records each requested type with a zero
+        # count. An empty raw_by_type means the search failed before the first
+        # type completed; older builds accidentally serialized that as 0/0.
+        return False
     return scraped >= total and failed == 0
 
 
@@ -1767,6 +1772,72 @@ async def scrape_one_day(context, page, county: str, types: list[str],
         print(f"  search failed: {err_text[:200]}")
         if err_text == "IP_RESTRICTED":
             raise
+        dump_path = day_dir(filing_iso) / "_search_error.html"
+        try:
+            dump_path.write_text(await page.content())
+        except Exception:
+            dump_path = None
+        failure = {
+            "case_number": None,
+            "case_type": None,
+            "url": page.url,
+            "county": county,
+            "error": f"SEARCH_FAILED: {err_text[:260]}",
+        }
+        if dump_path:
+            failure["page_dump"] = str(dump_path)
+        write_failed_cases(filing_iso, [failure])
+        update_day_summary(
+            filing_iso,
+            total_cases=0,
+            raw_by_type=raw_by_type,
+            per_type_kept={t.upper(): 0 for t in types},
+            scraped_cases=0,
+            failed_cases=1,
+            run_metadata={
+                "started_at": started_at,
+                "finished_at": utc_now_iso(),
+                "elapsed_seconds": round(time.monotonic() - started_perf, 2),
+                "search_failed": True,
+                "search_error": err_text[:500],
+                "search_error_url": page.url,
+                "search_error_dump": str(dump_path) if dump_path else None,
+                "county": county,
+                "case_types": types,
+            },
+        )
+        raise
+
+    if types and not raw_by_type:
+        err_text = "SEARCH_FAILED: no per-type search results were recorded"
+        print(f"  search failed: {err_text}")
+        failure = {
+            "case_number": None,
+            "case_type": None,
+            "url": page.url,
+            "county": county,
+            "error": err_text,
+        }
+        write_failed_cases(filing_iso, [failure])
+        update_day_summary(
+            filing_iso,
+            total_cases=0,
+            raw_by_type=raw_by_type,
+            per_type_kept={t.upper(): 0 for t in types},
+            scraped_cases=0,
+            failed_cases=1,
+            run_metadata={
+                "started_at": started_at,
+                "finished_at": utc_now_iso(),
+                "elapsed_seconds": round(time.monotonic() - started_perf, 2),
+                "search_failed": True,
+                "search_error": err_text,
+                "search_error_url": page.url,
+                "county": county,
+                "case_types": types,
+            },
+        )
+        raise RuntimeError(err_text)
 
     per_type_kept = {t.upper(): sum(1 for c in manifest if c["case_type"] == t.upper()) for t in types}
     total_raw = sum(raw_by_type.values())
@@ -1866,6 +1937,10 @@ async def run_scraper_loop(args, context, page, dates: list[date]):
                                      last_error="IP_RESTRICTED")
                 return
             print(f"  {iso}: aborted: {str(e)[:200]}")
+            if HEARTBEAT is not None:
+                HEARTBEAT.update(current_action="day-aborted",
+                                 last_error=str(e)[:300])
+            raise
 
 
 async def main():
