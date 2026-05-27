@@ -872,6 +872,31 @@ async def _click_turnstile_checkbox(page):
         except Exception:
             continue
 
+    # Emergency fallback: on some OSCN/Cloudflare variants the widget is
+    # visible to the user but not exposed as a normal iframe or widget node
+    # to Playwright. Click likely checkbox positions in the viewport instead
+    # of waiting forever for a selector that will never appear.
+    try:
+        viewport = page.viewport_size or {}
+        width = viewport.get("width") or await page.evaluate("() => window.innerWidth")
+        height = viewport.get("height") or await page.evaluate("() => window.innerHeight")
+        click_points = []
+        for y_frac in (0.34, 0.40, 0.46, 0.52):
+            for x_offset in (-150, -125, -100, -75):
+                click_points.append((max(20, width / 2 + x_offset), max(40, height * y_frac)))
+        # OSCN's responsive challenge sometimes renders the widget closer
+        # to the upper-left content column.
+        click_points.extend([(52, 202), (60, 202), (80, 202), (52, 245), (80, 245)])
+        for cx, cy in click_points:
+            await page.mouse.move(cx, cy, steps=2)
+            await page.mouse.click(cx, cy, delay=25)
+            await asyncio.sleep(0.12)
+            if await _turnstile_response_present(page):
+                return f"viewport-sweep:{int(cx)},{int(cy)}"
+        return "viewport-sweep"
+    except Exception:
+        pass
+
     return None
 
 async def _submit_challenge_page(page):
