@@ -1848,6 +1848,14 @@ async def scrape_one_day(context, page, county: str, types: list[str],
         total_cases=len(manifest),
         raw_by_type=raw_by_type,
         per_type_kept=per_type_kept,
+        run_metadata={
+            "started_at": started_at,
+            "search_finished_at": utc_now_iso(),
+            "search_elapsed_seconds": round(time.monotonic() - started_perf, 2),
+            "search_complete": True,
+            "county": county,
+            "case_types": types,
+        },
     )
 
     if not manifest:
