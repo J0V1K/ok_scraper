@@ -995,7 +995,15 @@ async def _page_content_or_blank(page):
     if page.is_closed():
         return ""
     try:
-        return await page.content()
+        return await asyncio.wait_for(page.content(), timeout=3.0)
+    except Exception:
+        return ""
+
+async def _page_title_or_blank(page):
+    if page.is_closed():
+        return ""
+    try:
+        return await asyncio.wait_for(page.title(), timeout=2.0)
     except Exception:
         return ""
 
@@ -1031,7 +1039,7 @@ async def wait_for_human_solve(
                     print("Challenge page closed; treating as success")
                     return True
                 raise Exception("PAGE_CLOSED")
-            title = await page.title()
+            title = await _page_title_or_blank(page)
             content = await _page_content_or_blank(page)
             url_lower = page.url.lower()
             
