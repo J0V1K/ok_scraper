@@ -699,19 +699,22 @@ async def _click_visible(scope, selectors, *, timeout_ms=1500, force=False):
 
 async def _turnstile_response_present(page):
     try:
-        return await page.evaluate(
-            """() => {
-                const responses = [
-                    document.querySelector('[name="cf-turnstile-response"]'),
-                    ...document.querySelectorAll(
-                        "input[type='hidden'][id^='cf-chl-widget'][id$='_response'], " +
-                        "input[type='hidden'][id^='cf-chl-widget'][id$='_g_response']"
-                    ),
-                ];
-                return responses.some(
-                    response => response && response.value && response.value.length > 10
-                );
-            }"""
+        return await asyncio.wait_for(
+            page.evaluate(
+                """() => {
+                    const responses = [
+                        document.querySelector('[name="cf-turnstile-response"]'),
+                        ...document.querySelectorAll(
+                            "input[type='hidden'][id^='cf-chl-widget'][id$='_response'], " +
+                            "input[type='hidden'][id^='cf-chl-widget'][id$='_g_response']"
+                        ),
+                    ];
+                    return responses.some(
+                        response => response && response.value && response.value.length > 10
+                    );
+                }"""
+            ),
+            timeout=2.0,
         )
     except Exception:
         return False
@@ -1107,7 +1110,13 @@ async def wait_for_human_solve(
 
                 # 2. If NOT solved, try to click the checkbox autonomously
                 if not is_solved:
-                    click_res = await _click_turnstile_checkbox(page)
+                    try:
+                        click_res = await asyncio.wait_for(
+                            _click_turnstile_checkbox(page),
+                            timeout=8.0,
+                        )
+                    except Exception:
+                        click_res = None
                     if click_res:
                         print(f">>> Turnstile challenge detected. Clicked {click_res}")
                     else:
@@ -1128,7 +1137,13 @@ async def wait_for_human_solve(
                     
                     if submitted_at == 0:
                         print("Turnstile solved! Finding submit button..."); await asyncio.sleep(0.2)
-                        click_res = await _submit_challenge_page(page)
+                        try:
+                            click_res = await asyncio.wait_for(
+                                _submit_challenge_page(page),
+                                timeout=5.0,
+                            )
+                        except Exception:
+                            click_res = None
                         if click_res:
                             print(f">>> Submission triggered via {click_res}."); 
                             if return_on_submit:
